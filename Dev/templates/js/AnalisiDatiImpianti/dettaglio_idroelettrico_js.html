@@ -1,14 +1,18 @@
 <script>
 		$(document).ready(function(){
+				console.log('Document ready - inizializzazione grafici');
+				
 				/* ID CHARTS */
 				var Chart1 = echarts.init(document.getElementById('chart-year'));
 				var Chart2 = echarts.init(document.getElementById('chart-3D'));
+				console.log('Grafici inizializzati:', Chart1, Chart2);
                 
 				window.addEventListener('resize', function() {Chart1.resize();});
 				window.addEventListener('resize', function() {Chart2.resize();});
 				
 				/* URL DATI */
 				var endpoint = '{% url 'api-analisi-impianto' nickname %}';
+				console.log('Endpoint API:', endpoint);
 				
 				/* VARIABILI */
 				var potenza = [];
@@ -33,9 +37,13 @@
 						'rgb(126,183,232)','rgb(37,75,135)',
 				];
 				const colors = [warmpalette[7],coolpalette[3],warmpalette[2],coolpalette[3],coolpalette[2]]
+				console.log('Palette colori configurate');
 				
 				/* CHIAMATA AJAX PER I DATI */
+				console.log('Inizio chiamata AJAX per i dati');
 				$.get(endpoint).done(function (Chart_data) {
+						console.log('Dati ricevuti dall\'API:', Chart_data);
+						
 						/* AGGIORNAMENTO VARIABILI */
 						timestamps = Chart_data.time;
 						potenza = Chart_data.pot;
@@ -45,15 +53,64 @@
 						today_max = Chart_data.today_max;
 						month_max = Chart_data.month_max;
 						year_max = Chart_data.year_max;
+						/* GESTIONE GAP TEMPORALI > 15 MINUTI: preparo serie [tempo, valore] con null per spezzare la linea */
+						const parseDateFromIT = (s) => {
+								if (!s) return null;
+								const parts = s.split(' ');
+								if (parts.length < 2) return null;
+								const [dd, mm, yyyy] = parts[0].split('/');
+								const hhmm = parts[1];
+								return new Date(`${yyyy}-${mm}-${dd}T${hhmm}:00`);
+						};
+						const toNumOrNull = v => (v === '' || v === null || v === undefined ? null : Number(v));
+						const dates = timestamps.map(parseDateFromIT);
+						const GAP_MS = 15 * 60 * 1000; // 15 minuti
+
+						let dataPotenza = [];
+						let dataPortata = [];
+						let dataPressione = [];
+						let dataRendimento = [];
+
+						for (let i = 0; i < dates.length; i++) {
+								const d = dates[i];
+								dataPotenza.push([d, toNumOrNull(potenza[i])]);
+								dataPortata.push([d, toNumOrNull(portata[i])]);
+								dataPressione.push([d, toNumOrNull(pressione[i])]);
+								dataRendimento.push([d, toNumOrNull(rendimento[i])]);
+
+								if (i < dates.length - 1 && dates[i] && dates[i+1]) {
+										const delta = dates[i+1] - dates[i];
+										if (delta > GAP_MS) {
+												const mid = new Date(dates[i].getTime() + Math.floor(delta / 2));
+												dataPotenza.push([mid, null]);
+												dataPortata.push([mid, null]);
+												dataPressione.push([mid, null]);
+												dataRendimento.push([mid, null]);
+										}
+								}
+						}
+						
+						console.log('Variabili aggiornate:');
+						console.log('- Timestamps length:', timestamps.length);
+						console.log('- Potenza length:', potenza.length);
+						console.log('- Portata length:', portata.length);
+						console.log('- Pressione length:', pressione.length);
+						console.log('- Rendimento length:', rendimento.length);
+						console.log('- Today max:', today_max);
+						console.log('- Month max:', month_max);
+						console.log('- Year max:', year_max);
 						
 						let coords = portata.map((el, index)=> [el, pressione[index],rendimento[index]]);
+						console.log('Coordinate 3D generate:', coords.length, 'punti');
                             
 						/* AGGIORNAMTO MASSIMI GIORNO, MESE, ANNO */
 						document.getElementById("today_max").innerHTML = toLocale(today_max,2) + ' kW';
 						document.getElementById("month_max").innerHTML = toLocale(month_max,2) + ' kW';
 						document.getElementById("year_max").innerHTML = toLocale(year_max,2) + ' kW';
+						console.log('Elementi DOM aggiornati con i massimi');
 						
 						/* GRAFICO DATI ANNO */
+						console.log('Configurazione grafico principale...');
 						Chart1.setOption({
 								title: false, 
 								color: colors, 
@@ -73,11 +130,11 @@
                 ],
 								/* DUE GRAFICI COLLEGATI SOPRA: POTENZA E PORTATA, SOTTO: RENDIMENTO, PORTATA E PRESSIONE*/
 							  grid: [{top: '5%', height: '42%',right: '10%' }, {top: '47%', height: '42%',right: '10%'}],
-								/* TIMESTAMPS */
-								xAxis: [
-                    {gridIndex: 0, data: timestamps, splitLine:{ show: true }, axisLine: {show: true}, axisTick: {show: false}, axisLabel: {show:false}},
-                    {gridIndex: 1, data: timestamps, splitLine:{ show: true }, axisLine: {show: true}, axisTick: {show: true}},
-                ],
+						/* TIMESTAMPS */
+						xAxis: [
+								{gridIndex: 0, type: 'time', splitLine:{ show: true }, axisLine: {show: true}, axisTick: {show: false}, axisLabel: {show:false}},
+								{gridIndex: 1, type: 'time', splitLine:{ show: true }, axisLine: {show: true}, axisTick: {show: true}},
+						],
 								/* FORMAT ASSE Y */
                 yAxis: [
                     {
@@ -119,8 +176,8 @@
 								/* DATI - LINEE */
                 series: [
                     /* POTENZA */
-                    {
-                        name: 'Potenza', type: 'line', data: potenza,
+						{
+								name: 'Potenza', type: 'line', data: dataPotenza,
                         areaStyle: {
 	                          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
 			                          {offset: 0, color: warmpalette[7]}, 
@@ -133,8 +190,8 @@
                         tooltip: {valueFormatter: value => toLocale(value,2) + ' kW'}
                     },
 		                /* PORTATA */
-                    {
-                        name: 'Portata', type: 'line', xAxisIndex: 0, yAxisIndex: 1, data: portata,
+						{
+								name: 'Portata', type: 'line', xAxisIndex: 0, yAxisIndex: 1, data: dataPortata,
                         lineStyle: {width: 0.8,},emphasis: {focus: 'series'},showSymbol: false, large: true,
                         markLine: {data: [{ type:'average',label:{position:'insideEndTop', backgroundColor: '#efefef',
 			                          formatter: params => toLocale(params.value,2) + ' {{ impianto.unita_misura }}'}}],},
@@ -142,8 +199,8 @@
                     },
 		                /* ---------------------------------------------------------------------------------------------- */
 		                /* RENDIMENTO */
-                    {
-                        data: rendimento, type: 'line', name: 'Rendimento', xAxisIndex: 1, yAxisIndex: 2, smooth: true,
+						{
+								data: dataRendimento, type: 'line', name: 'Rendimento', xAxisIndex: 1, yAxisIndex: 2, smooth: true,
                         lineStyle: {width: 1.5,},showSymbol: false, large: true,
                         markLine: {data: [{ type:'average', 
 			                          label:{position:'insideEndTop', backgroundColor: '#efefef',
@@ -151,14 +208,14 @@
                         tooltip: {valueFormatter: value => toLocale(value,2) + ' %'}
                     },
 		                /* PORTATA */
-                    {
-                        name: 'Portata ', type: 'line', xAxisIndex: 1, yAxisIndex: 3, data: portata,
+						{
+								name: 'Portata ', type: 'line', xAxisIndex: 1, yAxisIndex: 3, data: dataPortata,
                         showSymbol: false, lineStyle: {width: 0.8,}, large: true,
 	                      tooltip: {valueFormatter: value => toLocale(value,2) + ' {{ impianto.unita_misura }}'}
                     },
 		                /* PRESSIONE */
-                    {
-                        name: 'Pressione', type: 'line', xAxisIndex: 1, yAxisIndex: 4, data: pressione,
+						{
+								name: 'Pressione', type: 'line', xAxisIndex: 1, yAxisIndex: 4, data: dataPressione,
 	                      showSymbol: false, lineStyle: {width: 1,}, large: true,
 	                      markLine: {data: [{ type:'average',label:{position:'insideEndTop', backgroundColor: '#efefef',
 					                      formatter: params => toLocale(params.value,2) + ' BarG'}}],},
@@ -166,8 +223,10 @@
                     }
                 ]
 						});
+						console.log('Grafico principale configurato');
                 
 						/* GRAFICO DATI 3D */
+						console.log('Configurazione grafico 3D...');
 						Chart2.setOption({
 								grid3D: {viewControl: {projection: 'orthographic'}},
 								color: ['rgb(61,114,196)','rgb(166,220,83)','rgb(255,41,0)'],
@@ -182,6 +241,12 @@
 										{data: coords.slice(-1), type: 'scatter3D', symbolSize: 6, name: 'Ultimo dato'},
 								]
 						})
+						console.log('Grafico 3D configurato');
+						console.log('Configurazione grafici completata');
+				}).fail(function(xhr, status, error) {
+						console.error('Errore nella chiamata AJAX:', error);
+						console.error('Status:', status);
+						console.error('Response:', xhr.responseText);
 				});
 		})
 </script>
