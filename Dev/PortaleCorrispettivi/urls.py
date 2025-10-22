@@ -38,8 +38,8 @@ urlpatterns = [
 	# Tabella misure (per tabella2)
 	path('api/misure/<str:anno_nickname>/', API_views.table_misure, name='api-table-misure'),
 
-	
-	# path('api/consorzi/<str:anno_nickname>/', API_views.TableConsorzi.as_view(), name='api-table-consorzi'),
-	
+	# Tabella consorzi (dati annuali)
+	path('api/consorzi/<int:anno>/<str:nickname>/', API_views.datitabellaconsorzi, name='api-dati-tabella-consorzi'),
+
 	
 ]

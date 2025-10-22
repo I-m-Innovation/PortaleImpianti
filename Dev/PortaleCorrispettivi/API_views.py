@@ -2,8 +2,7 @@
 from MonitoraggioImpianti.models import Impianto
 import numpy as np
 import pandas as pd
-from datetime import datetime,timedelta
-from django.db.models import Max, Min
+
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
@@ -15,13 +14,21 @@ from PortaleCorrispettivi.models import Cashflow
 import pandas as pd
 import os
 from PortaleCorrispettivi.models import Cashflow
-import traceback
+from datetime import datetime,timedelta
 import PortaleCorrispettivi.utils.functions as fn
 from .models import *
 import re
 from AutomazioneDati.models import regsegnanti
 from django.db.models import Q
 from .models import commento_tabellacorrispettivi
+
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.renderers import JSONRenderer
+from rest_framework.permissions import IsAuthenticated
+from django.forms.models import model_to_dict
+
 def filtroimpianto(nickname,anno,mese):
     
     return regsegnanti.objects.filter(
@@ -155,7 +162,7 @@ def datiCNI(request, nickname, anno, mese):
                     CNI_value = float(row[2])
                     data_CNI.append(CNI_value)
                 except (ValueError, TypeError) as e:
-                    print(f"[DEBUG] Errore conversione valore CNI {row[2]}: {e}")
+                    # print(f"[DEBUG] Errore conversione valore CNI {row[2]}: {e}")
                     continue
         # print(f"[DEBUG] Valori CNI filtrati e convertiti per mese {mese}: {data_CNI}")
     
@@ -1012,4 +1019,169 @@ def table_misure(request, anno_nickname):
 
 
 
-# tabelle corispettivi
+#funzioni per i consorzi
+def datitabellaconsorzi(request, anno, nickname):
+    """
+    Restituisce i dati per le tabelle dei consorzi per TUTTI gli anni disponibili.
+    Utilizza filtroimpianto per recuperare i dati di energia prodotta dal database.
+    
+    Per ogni anno (2021-2025), costruisce:
+    
+    Table1 (Periodo ottobre-marzo): 
+        - Ottobre, Novembre, Dicembre dell'anno PRECEDENTE (anno-1)
+        - Gennaio, Febbraio, Marzo dell'anno CORRENTE (anno)
+    
+    Table2 (Periodo aprile-settembre):
+        - Aprile, Maggio, Giugno, Luglio, Agosto, Settembre dell'anno CORRENTE (anno)
+    
+    Ogni riga contiene: i (indice), mese, incassi, canone (11% degli incassi), prodotta_def (energia)
+    
+    Restituisce un dizionario con i dati organizzati per anno.
+    """
+    # print(f"[DEBUG] datitabellaconsorzi - nickname: {nickname}")
+    
+    # Lista degli anni da elaborare
+    anni_da_elaborare = [2021, 2022, 2023, 2024, 2025]
+    
+    # Nomi dei mesi in italiano
+    nomi_mesi = [
+        'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+        'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
+    ]
+    
+    # Dizionario che conterrà i dati per tutti gli anni
+    data_per_anno = {}
+    
+    # ===== CICLA SU TUTTI GLI ANNI =====
+    for anno_corrente in anni_da_elaborare:
+        # print(f"[DEBUG] Elaborazione anno {anno_corrente}")
+        
+        anno_precedente = anno_corrente - 1
+        
+        # Recupera i dati di incassi per l'anno CORRENTE (dai file Excel)
+        response_incassi_corrente = datiRiepilogoPagamenti_annuale(request, nickname, anno_corrente)
+        incassi_data_corrente = json.loads(response_incassi_corrente.content.decode('utf-8'))
+        incassi_per_mese_corrente = incassi_data_corrente.get('per_month', {})
+        
+        # Recupera i dati di incassi per l'anno PRECEDENTE (dai file Excel)
+        response_incassi_precedente = datiRiepilogoPagamenti_annuale(request, nickname, anno_precedente)
+        incassi_data_precedente = json.loads(response_incassi_precedente.content.decode('utf-8'))
+        incassi_per_mese_precedente = incassi_data_precedente.get('per_month', {})
+        
+        # Recupera i dati di energia prodotta per l'anno CORRENTE usando filtroimpianto
+        energia_per_mese_corrente = {}
+        for mese in range(1, 13):
+            qs = filtroimpianto(nickname, anno_corrente, mese)
+            energia_totale = sum(float(record.prod_campo) for record in qs if record.prod_campo is not None)
+            energia_per_mese_corrente[mese] = energia_totale
+        
+        # Recupera i dati di energia prodotta per l'anno PRECEDENTE usando filtroimpianto
+        energia_per_mese_precedente = {}
+        for mese in range(1, 13):
+            qs = filtroimpianto(nickname, anno_precedente, mese)
+            energia_totale = sum(float(record.prod_campo) for record in qs if record.prod_campo is not None)
+            energia_per_mese_precedente[mese] = energia_totale
+        
+        # ===== TABLE 1: Ottobre-Marzo (anno fiscale) =====
+        # Ottobre, Novembre, Dicembre dell'anno PRECEDENTE + Gennaio, Febbraio, Marzo dell'anno CORRENTE
+        table1 = []
+        totale_incassi_t1 = 0
+        totale_canone_t1 = 0
+        totale_energia_t1 = 0
+        
+        # Ottobre, Novembre, Dicembre dell'anno PRECEDENTE (mesi 10, 11, 12)
+        for mese_num in [10, 11, 12]:
+            incassi = float(incassi_per_mese_precedente.get(mese_num, incassi_per_mese_precedente.get(str(mese_num), 0)))
+            energia = float(energia_per_mese_precedente.get(mese_num, energia_per_mese_precedente.get(str(mese_num), 0)))
+            canone = incassi * 0.11
+            
+            totale_incassi_t1 += incassi
+            totale_canone_t1 += canone
+            totale_energia_t1 += energia
+            
+            table1.append({
+                'i': mese_num,
+                'mese': f"{nomi_mesi[mese_num-1]} {anno_precedente}",  # Es: "Ottobre 2023"
+                'incassi': incassi,
+                'canone': canone,
+                'prodotta_def': energia
+            })
+        
+        # Gennaio, Febbraio, Marzo dell'anno CORRENTE (mesi 1, 2, 3)
+        for mese_num in [1, 2, 3]:
+            incassi = float(incassi_per_mese_corrente.get(mese_num, incassi_per_mese_corrente.get(str(mese_num), 0)))
+            energia = float(energia_per_mese_corrente.get(mese_num, energia_per_mese_corrente.get(str(mese_num), 0)))
+            canone = incassi * 0.11
+            
+            totale_incassi_t1 += incassi
+            totale_canone_t1 += canone
+            totale_energia_t1 += energia
+            
+            table1.append({
+                'i': mese_num,
+                'mese': f"{nomi_mesi[mese_num-1]} {anno_corrente}",  # Es: "Gennaio 2024"
+                'incassi': incassi,
+                'canone': canone,
+                'prodotta_def': energia
+            })
+        
+        # Aggiunge riga totale per table1
+        table1.append({
+            'i': 13,
+            'mese': 'Totale Periodo',
+            'incassi': totale_incassi_t1,
+            'canone': totale_canone_t1,
+            'prodotta_def': totale_energia_t1
+        })
+        
+        # ===== TABLE 2: Aprile-Settembre dell'anno CORRENTE =====
+        table2 = []
+        totale_incassi_t2 = 0
+        totale_canone_t2 = 0
+        totale_energia_t2 = 0
+        
+        # Aprile, Maggio, Giugno, Luglio, Agosto, Settembre (mesi 4-9)
+        for mese_num in [4, 5, 6, 7, 8, 9]:
+            incassi = float(incassi_per_mese_corrente.get(mese_num, incassi_per_mese_corrente.get(str(mese_num), 0)))
+            energia = float(energia_per_mese_corrente.get(mese_num, energia_per_mese_corrente.get(str(mese_num), 0)))
+            canone = incassi * 0.11
+            
+            totale_incassi_t2 += incassi
+            totale_canone_t2 += canone
+            totale_energia_t2 += energia
+            
+            table2.append({
+                'i': mese_num,
+                'mese': f"{nomi_mesi[mese_num-1]} {anno_corrente}",  # Es: "Aprile 2024"
+                'incassi': incassi,
+                'canone': canone,
+                'prodotta_def': energia
+            })
+        
+        # Aggiunge riga totale per table2
+        table2.append({
+            'i': 14,
+            'mese': 'Totale Periodo',
+            'incassi': totale_incassi_t2,
+            'canone': totale_canone_t2,
+            'prodotta_def': totale_energia_t2
+        })
+        
+        # Memorizza i dati per questo anno nel dizionario principale
+        data_per_anno[str(anno_corrente)] = {
+            'table1': table1,  # Ottobre-Marzo (anno fiscale)
+            'table2': table2,  # Aprile-Settembre
+            'anno': anno_corrente,
+            'anno_precedente': anno_precedente
+        }
+        
+        # print(f"[DEBUG] Anno {anno_corrente}: table1={len(table1)} righe, table2={len(table2)} righe")
+    
+    # print(f"[DEBUG] Totale anni elaborati: {len(data_per_anno)}")
+    
+    return JsonResponse({
+        'success': True,
+        'data_per_anno': data_per_anno,  # Dizionario con chiavi '2021', '2022', '2023', '2024', '2025'
+        'anni_disponibili': anni_da_elaborare,
+        'impianto': nickname
+    })

@@ -49,20 +49,21 @@
 							<th>n.</th>
 				      <th data-dt-order="disable"> Mese </th>
 				      <th data-dt-order="disable" style="text-align: center" > <i class="fa fa-eur" aria-hidden="true"></i>&nbsp;Incassi<sup>*</sup></th>
-							<th style="text-align: center" > <i class="fa fa-external-link-square" aria-hidden="true"></i>&nbsp;Canone </th>
+							<th data-dt-order="disable" style="text-align: center" > <i class="fa fa-external-link-square" aria-hidden="true"></i>&nbsp;Canone </th>
 							<th data-dt-order="disable" style="text-align: center"> <i class="fa fa-bolt" aria-hidden="true"></i>&nbsp;Energia </th>
 						</tr>
 						</thead>
+						<tbody></tbody>
 					</table>
 					<span><sup>*</sup>L'incasso è sempre calcolato sulla produzione di energia dei mesi precedenti.</span>
-					{% if anno == curr_anno %}
+					
 						<div class="col mx-5" style="border: 1px solid #f19494;">
 							<h5>Fatturazione Canone di Gestione Condotte ({{ anno }} Primo Periodo)</h5>
 							<p><u style="margin: 0">Oggetto:</u> Canone per utilizzo delle condotte idriche e manufatti idrici di proprietà della Comunità Montana Valle Imagna come da convenzione del 27.07.2017.
 								PERIODO 01 OTTOBRE {{ anno|add:"-1" }} - 31 MARZO {{ anno }}</p>
-							<p style="margin-bottom: 0"><u>Imponibile:</u>&nbsp;<span style="font-weight: bold" id="imponibile1"></span>&nbsp;&nbsp;<u>IVA (22%):</u>&nbsp;<span style="font-weight: bold" id="iva1"></span>&nbsp;&nbsp;<u>TOTALE FATTURA:</u>&nbsp;<span style="font-weight: bold" id="totale1"></span></p>
+							<p style="margin-bottom: 0"><u>Imponibile:</u>&nbsp;<span style="font-weight: bold" id="imponibile1_{{ anno }}"></span>&nbsp;&nbsp;<u>IVA (22%):</u>&nbsp;<span style="font-weight: bold" id="iva1_{{ anno }}"></span>&nbsp;&nbsp;<u>TOTALE FATTURA:</u>&nbsp;<span style="font-weight: bold" id="totale1_{{ anno }}"></span></p>
 						</div>
-					{% endif %}
+					
 				</div>
 				<div class="row p-2 m-0">
 					<span>Schede dei corrispettivi di energia e calcolo canone di gestione delle condotte.</span>
@@ -70,22 +71,23 @@
 						<thead>
 						<tr data-dt-order="disable">
 				      <th>n.</th>
-				      <th> Mese </th>
-				      <th style="text-align: center" > <i class="fa fa-eur" aria-hidden="true"></i>&nbsp;Incassi </th>
-							<th style="text-align: center" > <i class="fa fa-external-link-square" aria-hidden="true"></i>&nbsp;Canone </th>
-							<th style="text-align: center"> <i class="fa fa-bolt" aria-hidden="true"></i>&nbsp;Energia </th>
+				      <th data-dt-order="disable"> Mese </th>
+				      <th data-dt-order="disable" style="text-align: center" > <i class="fa fa-eur" aria-hidden="true"></i>&nbsp;Incassi </th>
+							<th data-dt-order="disable" style="text-align: center" > <i class="fa fa-external-link-square" aria-hidden="true"></i>&nbsp;Canone </th>
+							<th data-dt-order="disable" style="text-align: center"> <i class="fa fa-bolt" aria-hidden="true"></i>&nbsp;Energia </th>
 						</tr>
 						</thead>
+						<tbody></tbody>
 					</table>
 					<span><sup>*</sup>L'incasso è sempre calcolato sulla produzione di energia dei mesi precedenti.</span>
-					{% if anno == curr_anno%}
+					
 						<div class="col mx-5" style="border: 1px solid #f19494;">
 							<h5>Fatturazione Canone di Gestione Condotte ({{ anno }} Secondo Periodo)</h5>
-							<p><u style="margin: 0">Oggetto:</u> Canone per utilizzo delle condotte idriche e manufatti idrici di propreità della Comunità Montana Valle Imagna come da convenzione del 27.07.2017.
-								PERIODO 01 APRILE {{ anno|add:"-1" }} - 30 SETTEMBRE {{ anno }}</p>
-							<p style="margin-bottom: 0"><u>Imponibile:</u>&nbsp;<span style="font-weight: bold" id="imponibile2"></span>&nbsp;&nbsp;<u>IVA (22%):</u>&nbsp;<span style="font-weight: bold" id="iva2"></span>&nbsp;&nbsp;<u>TOTALE FATTURA:</u>&nbsp;<span style="font-weight: bold" id="totale2"></span></p>
+							<p><u style="margin: 0">Oggetto:</u> Canone per utilizzo delle condotte idriche e manufatti idrici di proprietà della Comunità Montana Valle Imagna come da convenzione del 27.07.2017.
+								PERIODO 01 APRILE {{ anno }} - 30 SETTEMBRE {{ anno }}</p>
+							<p style="margin-bottom: 0"><u>Imponibile:</u>&nbsp;<span style="font-weight: bold" id="imponibile2_{{ anno }}"></span>&nbsp;&nbsp;<u>IVA (22%):</u>&nbsp;<span style="font-weight: bold" id="iva2_{{ anno }}"></span>&nbsp;&nbsp;<u>TOTALE FATTURA:</u>&nbsp;<span style="font-weight: bold" id="totale2_{{ anno }}"></span></p>
 						</div>
-					{% endif %}
+					
 				</div>
 			</div>
 		</div>

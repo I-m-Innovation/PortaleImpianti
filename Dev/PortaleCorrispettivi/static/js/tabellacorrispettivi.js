@@ -46,12 +46,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const cellTFO = table.querySelector(`.tfo-value[data-mese="${mese}"]`);
                 if (cellTFO) {
                     const v = tfoByM[mese] ?? tfoByM[String(mese)] ?? null;
-                    console.log(`[DEBUG TFO] Mese: ${mese}, Valore originale: ${v}, Tipo: ${typeof v}`);
+                    // console.log(`[DEBUG TFO] Mese: ${mese}, Valore originale: ${v}, Tipo: ${typeof v}`);
                     if (v === null || typeof v === 'undefined') {
                         cellTFO.textContent = 'NuN';
                     } else {
                         const sum = parseFloat(v) || 0;
-                        console.log(`[DEBUG TFO] Mese: ${mese}, Valore convertito: ${sum}, Testo finale: ${sum === 0 ? '0 €' : sum.toFixed(2).replace('.', ',') + ' €'}`);
+                        // console.log(`[DEBUG TFO] Mese: ${mese}, Valore convertito: ${sum}, Testo finale: ${sum === 0 ? '0 €' : sum.toFixed(2).replace('.', ',') + ' €'}`);
                         cellTFO.textContent = sum === 0 ? '0 €' : sum.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
                     }
                 }
