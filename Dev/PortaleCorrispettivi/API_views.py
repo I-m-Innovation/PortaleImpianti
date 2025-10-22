@@ -1083,15 +1083,34 @@ def datitabellaconsorzi(request, anno, nickname):
             energia_per_mese_precedente[mese] = energia_totale
         
         # ===== TABLE 1: Ottobre-Marzo (anno fiscale) =====
-        # Ottobre, Novembre, Dicembre dell'anno PRECEDENTE + Gennaio, Febbraio, Marzo dell'anno CORRENTE
+        # IMPORTANTE: Gli incassi vengono registrati 2 mesi dopo la produzione
+        # Quindi per visualizzare il mese X, devo prendere gli incassi di (X-2 mesi)
+        
         table1 = []
         totale_incassi_t1 = 0
         totale_canone_t1 = 0
         totale_energia_t1 = 0
         
         # Ottobre, Novembre, Dicembre dell'anno PRECEDENTE (mesi 10, 11, 12)
+        # Per questi mesi, devo prendere gli incassi di 2 mesi prima (Ago, Set, Ott dell'anno precedente)
         for mese_num in [10, 11, 12]:
-            incassi = float(incassi_per_mese_precedente.get(mese_num, incassi_per_mese_precedente.get(str(mese_num), 0)))
+            # Calcola il mese di incasso (2 mesi prima)
+            mese_incasso = mese_num - 2
+            anno_incasso = anno_precedente
+            if mese_incasso <= 0:
+                mese_incasso += 12
+                anno_incasso = anno_precedente - 1
+            
+            # Prende gli incassi dal mese di incasso, ma l'energia dal mese di produzione
+            if anno_incasso == anno_precedente - 1:
+                # Per agosto e settembre, prendi dall'anno precedente-1
+                response_incassi_anno_meno2 = datiRiepilogoPagamenti_annuale(request, nickname, anno_precedente - 1)
+                incassi_data_anno_meno2 = json.loads(response_incassi_anno_meno2.content.decode('utf-8'))
+                incassi_per_mese_anno_meno2 = incassi_data_anno_meno2.get('per_month', {})
+                incassi = float(incassi_per_mese_anno_meno2.get(mese_incasso, incassi_per_mese_anno_meno2.get(str(mese_incasso), 0)))
+            else:
+                incassi = float(incassi_per_mese_precedente.get(mese_incasso, incassi_per_mese_precedente.get(str(mese_incasso), 0)))
+            
             energia = float(energia_per_mese_precedente.get(mese_num, energia_per_mese_precedente.get(str(mese_num), 0)))
             canone = incassi * 0.11
             
@@ -1108,8 +1127,21 @@ def datitabellaconsorzi(request, anno, nickname):
             })
         
         # Gennaio, Febbraio, Marzo dell'anno CORRENTE (mesi 1, 2, 3)
+        # Per questi mesi, devo prendere gli incassi di 2 mesi prima (Nov, Dic dell'anno precedente, Gen dell'anno corrente)
         for mese_num in [1, 2, 3]:
-            incassi = float(incassi_per_mese_corrente.get(mese_num, incassi_per_mese_corrente.get(str(mese_num), 0)))
+            # Calcola il mese di incasso (2 mesi prima)
+            mese_incasso = mese_num - 2
+            anno_incasso = anno_corrente
+            if mese_incasso <= 0:
+                mese_incasso += 12
+                anno_incasso = anno_precedente
+            
+            # Prende gli incassi dal mese di incasso, ma l'energia dal mese di produzione
+            if anno_incasso == anno_precedente:
+                incassi = float(incassi_per_mese_precedente.get(mese_incasso, incassi_per_mese_precedente.get(str(mese_incasso), 0)))
+            else:
+                incassi = float(incassi_per_mese_corrente.get(mese_incasso, incassi_per_mese_corrente.get(str(mese_incasso), 0)))
+            
             energia = float(energia_per_mese_corrente.get(mese_num, energia_per_mese_corrente.get(str(mese_num), 0)))
             canone = incassi * 0.11
             
@@ -1135,14 +1167,30 @@ def datitabellaconsorzi(request, anno, nickname):
         })
         
         # ===== TABLE 2: Aprile-Settembre dell'anno CORRENTE =====
+        # IMPORTANTE: Gli incassi vengono registrati 2 mesi dopo la produzione
+        # Quindi per visualizzare il mese X, devo prendere gli incassi di (X-2 mesi)
+        
         table2 = []
         totale_incassi_t2 = 0
         totale_canone_t2 = 0
         totale_energia_t2 = 0
         
         # Aprile, Maggio, Giugno, Luglio, Agosto, Settembre (mesi 4-9)
+        # Per questi mesi, devo prendere gli incassi di 2 mesi prima (Feb, Mar, Apr, Mag, Giu, Lug dell'anno corrente)
         for mese_num in [4, 5, 6, 7, 8, 9]:
-            incassi = float(incassi_per_mese_corrente.get(mese_num, incassi_per_mese_corrente.get(str(mese_num), 0)))
+            # Calcola il mese di incasso (2 mesi prima)
+            mese_incasso = mese_num - 2
+            anno_incasso = anno_corrente
+            if mese_incasso <= 0:
+                mese_incasso += 12
+                anno_incasso = anno_precedente
+            
+            # Prende gli incassi dal mese di incasso, ma l'energia dal mese di produzione
+            if anno_incasso == anno_precedente:
+                incassi = float(incassi_per_mese_precedente.get(mese_incasso, incassi_per_mese_precedente.get(str(mese_incasso), 0)))
+            else:
+                incassi = float(incassi_per_mese_corrente.get(mese_incasso, incassi_per_mese_corrente.get(str(mese_incasso), 0)))
+            
             energia = float(energia_per_mese_corrente.get(mese_num, energia_per_mese_corrente.get(str(mese_num), 0)))
             canone = incassi * 0.11
             
