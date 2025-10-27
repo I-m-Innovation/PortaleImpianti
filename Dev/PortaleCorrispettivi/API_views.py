@@ -1120,7 +1120,7 @@ def datitabellaconsorzi(request, anno, nickname):
             
             table1.append({
                 'i': mese_num,
-                'mese': f"{nomi_mesi[mese_num-1]} {anno_precedente}",  # Es: "Ottobre 2023"
+                'mese': f"{nomi_mesi[mese_num-1]} {anno_precedente}",  # Es: "Ottobre 2023"    
                 'incassi': incassi,
                 'canone': canone,
                 'prodotta_def': energia

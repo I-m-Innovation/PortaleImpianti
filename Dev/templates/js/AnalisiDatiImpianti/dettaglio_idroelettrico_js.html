@@ -62,7 +62,13 @@
 								const hhmm = parts[1];
 								return new Date(`${yyyy}-${mm}-${dd}T${hhmm}:00`);
 						};
-						const toNumOrNull = v => (v === '' || v === null || v === undefined ? null : Number(v));
+						const toNumOrNull = v => {
+							if (v === '' || v === null || v === undefined || isNaN(v)) {
+								return null;
+							}
+							const num = Number(v);
+							return isNaN(num) ? null : num;
+						};
 						const dates = timestamps.map(parseDateFromIT);
 						const GAP_MS = 15 * 60 * 1000; // 15 minuti
 
@@ -100,13 +106,33 @@
 						console.log('- Month max:', month_max);
 						console.log('- Year max:', year_max);
 						
-						let coords = portata.map((el, index)=> [el, pressione[index],rendimento[index]]);
-						console.log('Coordinate 3D generate:', coords.length, 'punti');
+						// Filtra le coordinate 3D per rimuovere punti con valori null/NaN
+						let coords = [];
+						for (let i = 0; i < portata.length; i++) {
+							const port = portata[i];
+							const pres = pressione[i];
+							const rend = rendimento[i];
+							
+							// Solo aggiungi il punto se tutti i valori sono validi
+							if (port !== null && pres !== null && rend !== null && 
+								!isNaN(port) && !isNaN(pres) && !isNaN(rend)) {
+								coords.push([port, pres, rend]);
+							}
+						}
+						console.log('Coordinate 3D generate:', coords.length, 'punti (filtrate da', portata.length, 'totali)');
                             
 						/* AGGIORNAMTO MASSIMI GIORNO, MESE, ANNO */
-						document.getElementById("today_max").innerHTML = toLocale(today_max,2) + ' kW';
-						document.getElementById("month_max").innerHTML = toLocale(month_max,2) + ' kW';
-						document.getElementById("year_max").innerHTML = toLocale(year_max,2) + ' kW';
+						// Funzione per gestire valori null/NaN nei massimi
+						const safeToLocale = (value, decimals) => {
+							if (value === null || value === undefined || isNaN(value)) {
+								return 'N/A';
+							}
+							return toLocale(value, decimals);
+						};
+						
+						document.getElementById("today_max").innerHTML = safeToLocale(today_max,2) + ' kW';
+						document.getElementById("month_max").innerHTML = safeToLocale(month_max,2) + ' kW';
+						document.getElementById("year_max").innerHTML = safeToLocale(year_max,2) + ' kW';
 						console.log('Elementi DOM aggiornati con i massimi');
 						
 						/* GRAFICO DATI ANNO */
@@ -185,17 +211,17 @@
 	                          ])
                         },
                         markLine: {data: [{ type:'average',label:{position:'insideEndTop', backgroundColor: '#efefef',
-			                          formatter: params => toLocale(params.value,2) + ' kW'}}],},
+			                          formatter: params => safeToLocale(params.value,2) + ' kW'}}],},
                         xAxisIndex: 0, yAxisIndex: 0, lineStyle: {width: 1,},showSymbol: false, large: true,
-                        tooltip: {valueFormatter: value => toLocale(value,2) + ' kW'}
+                        tooltip: {valueFormatter: value => safeToLocale(value,2) + ' kW'}
                     },
 		                /* PORTATA */
 						{
 								name: 'Portata', type: 'line', xAxisIndex: 0, yAxisIndex: 1, data: dataPortata,
                         lineStyle: {width: 0.8,},emphasis: {focus: 'series'},showSymbol: false, large: true,
                         markLine: {data: [{ type:'average',label:{position:'insideEndTop', backgroundColor: '#efefef',
-			                          formatter: params => toLocale(params.value,2) + ' {{ impianto.unita_misura }}'}}],},
-                        tooltip: {valueFormatter: value => toLocale(value,2) + ' {{ impianto.unita_misura }}'}
+			                          formatter: params => safeToLocale(params.value,2) + ' {{ impianto.unita_misura }}'}}],},
+                        tooltip: {valueFormatter: value => safeToLocale(value,2) + ' {{ impianto.unita_misura }}'}
                     },
 		                /* ---------------------------------------------------------------------------------------------- */
 		                /* RENDIMENTO */
@@ -204,22 +230,22 @@
                         lineStyle: {width: 1.5,},showSymbol: false, large: true,
                         markLine: {data: [{ type:'average', 
 			                          label:{position:'insideEndTop', backgroundColor: '#efefef',
-			                          formatter: params => toLocale(params.value,2) + ' %'}}],},
-                        tooltip: {valueFormatter: value => toLocale(value,2) + ' %'}
+			                          formatter: params => safeToLocale(params.value,2) + ' %'}}],},
+                        tooltip: {valueFormatter: value => safeToLocale(value,2) + ' %'}
                     },
 		                /* PORTATA */
 						{
 								name: 'Portata ', type: 'line', xAxisIndex: 1, yAxisIndex: 3, data: dataPortata,
                         showSymbol: false, lineStyle: {width: 0.8,}, large: true,
-	                      tooltip: {valueFormatter: value => toLocale(value,2) + ' {{ impianto.unita_misura }}'}
+	                      tooltip: {valueFormatter: value => safeToLocale(value,2) + ' {{ impianto.unita_misura }}'}
                     },
 		                /* PRESSIONE */
 						{
 								name: 'Pressione', type: 'line', xAxisIndex: 1, yAxisIndex: 4, data: dataPressione,
 	                      showSymbol: false, lineStyle: {width: 1,}, large: true,
 	                      markLine: {data: [{ type:'average',label:{position:'insideEndTop', backgroundColor: '#efefef',
-					                      formatter: params => toLocale(params.value,2) + ' BarG'}}],},
-	                      tooltip: {valueFormatter: value => toLocale(value,2) + ' BarG'}
+					                      formatter: params => safeToLocale(params.value,2) + ' BarG'}}],},
+	                      tooltip: {valueFormatter: value => safeToLocale(value,2) + ' BarG'}
                     }
                 ]
 						});
