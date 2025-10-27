@@ -60,6 +60,10 @@ class ChartData(APIView):
 		df_TS['Eta'] = df_TS['Eta'] * 100
 		print(f"[DEBUG] Formattazione timestamp e rendimento completata")
 
+		# Aggiungi il timestamp corrente come ultimo punto
+		current_timestamp = Now.strftime('%d/%m/%Y %H:%M')
+		print(f"[DEBUG] Aggiungendo timestamp corrente: {current_timestamp}")
+		
 		# Funzione per convertire NaN in None (che diventa null in JSON)
 		def nan_to_none(value):
 			if pd.isna(value) or np.isnan(value):
@@ -67,9 +71,9 @@ class ChartData(APIView):
 			return value
 
 		Chart_data = {
-			'time': df_TS.t.tolist(),
-			'pot': [nan_to_none(x) for x in df_TS.P.tolist()],
-			'eta': [nan_to_none(x) for x in df_TS.Eta.tolist()],
+			'time': df_TS.t.tolist() + [current_timestamp],
+			'pot': [nan_to_none(x) for x in df_TS.P.tolist()] + [None],
+			'eta': [nan_to_none(x) for x in df_TS.Eta.tolist()] + [None],
 			'today_max': nan_to_none(today_max),
 			'month_max': nan_to_none(month_max),
 			'year_max': nan_to_none(year_max)
@@ -79,8 +83,8 @@ class ChartData(APIView):
 			print(f"[DEBUG] Conversione portata da m³/s a l/s")
 			df_TS['Q'] = df_TS['Q'] * 1000
 
-		Chart_data['port'] = [nan_to_none(x) for x in df_TS.Q.tolist()]
-		Chart_data['pres'] = [nan_to_none(x) for x in df_TS.Bar.tolist()]
+		Chart_data['port'] = [nan_to_none(x) for x in df_TS.Q.tolist()] + [None]
+		Chart_data['pres'] = [nan_to_none(x) for x in df_TS.Bar.tolist()] + [None]
 		
 		print(f"[DEBUG] Dati preparati per risposta. Numero record: {len(df_TS)}")
 		print(f"[DEBUG] Unità di misura impianto: {impianto.unita_misura}")
