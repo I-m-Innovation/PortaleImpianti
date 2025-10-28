@@ -139,29 +139,69 @@ document.addEventListener('DOMContentLoaded', function() {
             exporting: { enabled: true },
             credits: { enabled: false }
         });
-    }
+    }   
 
+    //Funzione per aggiornare la tabella
     function aggiornaTabella(dati) {
         const tabella = document.getElementById('tabella_corrispettivi');
         if (!tabella) return;
+        //Ottieni la data corrente
+        const oggi = new Date();
+        const meseCorrente = oggi.getMonth() + 1;
+        const annoCorrente = oggi.getFullYear();
+        const annoSelezionato = parseInt(document.getElementById('selettore-anno').value);
 
         if ($.fn.DataTable.isDataTable(tabella)) {
             $(tabella).DataTable().destroy();
         }
 
-        const righeTabella = dati.map((d, index) => [
-            index + 1,
-            nomiMesi[d.mese - 1],
-            Math.round(d.energia_kwh || 0).toLocaleString(),
-            Math.round(d.corrispettivi_tfo || 0).toLocaleString(),
-            Math.round(d.fatturazione_tfo || 0).toLocaleString(),
-            Math.round(d.incassi || 0).toLocaleString()
-        ]);
+        const righeTabella = dati.map((d, index) => {
+            const isMeseFuturo = 
+                annoSelezionato > annoCorrente || 
+                (annoSelezionato === annoCorrente && d.mese > meseCorrente);
+            //Funzione per mostrare la barra
+            const formattaNumero = (valore) => {
+                if (isMeseFuturo) return '-'; //Per i mesi successivi mostra "-"
+                return Math.round(valore || 0).toLocaleString();
+            };
 
-        const totaleEnergia = dati.reduce((sum, d) => sum + (d.energia_kwh || 0), 0);
-        const totaleCorrispettivi = dati.reduce((sum, d) => sum + (d.corrispettivi_tfo || 0), 0);
-        const totaleFatturazione = dati.reduce((sum, d) => sum + (d.fatturazione_tfo || 0), 0);
-        const totaleIncassi = dati.reduce((sum, d) => sum + (d.incassi || 0), 0);
+            return [
+                index + 1,
+                nomiMesi[d.mese - 1],
+                formattaNumero(d.energia_kwh),
+                formattaNumero(d.corrispettivi_tfo),
+                formattaNumero(d.fatturazione_tfo),
+                formattaNumero(d.incassi)
+            ];
+        });
+
+        const totaleEnergia = dati.reduce((sum, d) => {
+            const isMeseFuturo = 
+                annoSelezionato > annoCorrente || 
+                (annoSelezionato === annoCorrente && d.mese > meseCorrente);
+            return sum + (isMeseFuturo ? 0 : (d.energia_kwh || 0));
+        }, 0);
+        
+        const totaleCorrispettivi = dati.reduce((sum, d) => {
+            const isMeseFuturo = 
+                annoSelezionato > annoCorrente || 
+                (annoSelezionato === annoCorrente && d.mese > meseCorrente);
+            return sum + (isMeseFuturo ? 0 : (d.corrispettivi_tfo || 0));
+        }, 0);
+
+        const totaleFatturazione = dati.reduce((sum, d) => {
+            const isMeseFuturo = 
+                annoSelezionato > annoCorrente || 
+                (annoSelezionato === annoCorrente && d.mese > meseCorrente);
+            return sum + (isMeseFuturo ? 0 : (d.fatturazione_tfo || 0));
+        }, 0);
+
+        const totaleIncassi = dati.reduce((sum, d) => {
+            const isMeseFuturo = 
+                annoSelezionato > annoCorrente || 
+                (annoSelezionato === annoCorrente && d.mese > meseCorrente);
+            return sum + (isMeseFuturo ? 0 : (d.incassi || 0));
+        }, 0);
 
         $(tabella).DataTable({
             data: righeTabella,
