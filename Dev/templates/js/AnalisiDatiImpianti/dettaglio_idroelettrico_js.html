@@ -70,7 +70,7 @@
 							return isNaN(num) ? null : num;
 						};
 						const dates = timestamps.map(parseDateFromIT);
-						const GAP_MS = 15 * 60 * 1000; // 15 minuti
+						const GAP_MS = 60 * 60 * 1000; // 1 ora in millisecondi
 
 						let dataPotenza = [];
 						let dataPortata = [];
