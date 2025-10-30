@@ -94,46 +94,36 @@ def home(request):
 
 @login_required(login_url='login')
 def impianto(request, nickname):
-	# Ottieni l'anno dalla query string, o usa l'anno corrente come default
-	anno = request.GET.get('anno', datetime.now().year)
-	
-	# LINK PORTALE MONITORAGGIO (NELLA NAV-BAR)
-	# link_monitoraggio = linkportale.objects.filter(tag='portale-monitoraggio')[0].link
-	# link_analisi = linkportale.objects.filter(tag='portale-analisi')[0].link
-
-	# DATI DEGLI IMPAIANTI
-	impianti = Impianto.objects.all().filter(tipo='Idroelettrico')
-	impianto = Impianto.objects.all().filter(nickname=nickname)[0]
-	df_impianti = pd.DataFrame(impianti.values())
-	df_impianti = df_impianti.set_index('nickname')
-	dz_impianti = df_impianti.to_dict(orient='index')
-	dz_impianto = dz_impianti[nickname]
-
-	
-	# Ottieni gli anni disponibili per questo impianto
-	anni_disponibili = DiarioLetture.objects.filter(impianto=impianto).values_list('anno', flat=True)
-	print(anni_disponibili)
-	# POST METHOD --> INSERIMENTO COMMENTO MISURA
-
+    # Ottieni l'anno dalla query string, o usa l'anno corrente come default
+    anno = request.GET.get('anno', datetime.now().year)
     
-	# Passa l'anno al template
-	context = {
-		# PAGINA
-		# 'link_monitoraggio': link_monitoraggio,
-		# 'link_analisi': link_analisi,
-		'page_title': 'Situazione corrispettivi',
-		# DATI PAGINA
-		'impianti': dz_impianti,
-		'headtitle': 'Dettaglio impianto',
-		'nickname': nickname,
-		'impianto': dz_impianto,
-		
-		'anno': anno,
-		'curr_anno': str(datetime.now().year),
-		'anni_disponibili': anni_disponibili
-	}
-	return render(request, 'PortaleCorrispettivi/dettaglio_corrispettivi.html', context=context)
+    # DATI DEGLI IMPAIANTI
+    impianti = Impianto.objects.all().filter(tipo='Idroelettrico')
+    impianto = Impianto.objects.all().filter(nickname=nickname)[0]
+    df_impianti = pd.DataFrame(impianti.values())
+    df_impianti = df_impianti.set_index('nickname')
+    dz_impianti = df_impianti.to_dict(orient='index')
+    dz_impianto = dz_impianti[nickname]
 
+    # Ottieni gli anni disponibili per questo impianto
+    anni_disponibili = list(DiarioLetture.objects.filter(impianto=impianto).values_list('anno', flat=True).distinct())
+    print(anni_disponibili)
+    
+    # Passa l'anno al template
+    context = {
+        # PAGINA
+        'page_title': 'Situazione corrispettivi',
+        # DATI PAGINA
+        'impianti': dz_impianti,
+        'headtitle': 'Dettaglio impianto',
+        'nickname': nickname,
+        'impianto': dz_impianto,
+        
+        'anno': anno,
+        'curr_anno': str(datetime.now().year),
+        'anni_disponibili': anni_disponibili
+    }
+    return render(request, 'PortaleCorrispettivi/dettaglio_corrispettivi.html', context=context)
 
 @login_required(login_url='login')
 def view_report_impianto(request, nickname):

@@ -803,7 +803,7 @@ def datiRiepilogoPagamenti_annuale(request, nickname, anno):
             df = df.dropna(subset=['data', 'valore'])
             # print(f"[DEBUG] Dopo rimozione righe vuote: {len(df)} righe")
             
-            df['data'] = pd.to_datetime(df['data'], errors='coerce')
+            df['data'] = pd.to_datetime(df['data'], format='%Y-%m-%d', errors='coerce')
             df = df.dropna(subset=['data'])
             # print(f"[DEBUG] Dopo conversione date: {len(df)} righe")
             

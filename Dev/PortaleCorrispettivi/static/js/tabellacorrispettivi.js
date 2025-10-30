@@ -1,24 +1,55 @@
+const cacheTotali = new Map();
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('tabellacorrispettivi.js: DOM pronto!');
+
     const tables = document.querySelectorAll('.js-tabella-corrispettivi');
-    if (!tables || tables.length === 0) return;
+    if (!tables || tables.length === 0) {
+        console.warn('Nessuna tabella .js-tabella-corrispettivi trovata');
+        return;
+    }
+
+    console.log(`Trovate ${tables.length} tabelle corrispettivi`);
+
+    // Mappa per tracciare le chiamate API già fatte
+    const apiCallsCache = new Map();
+
+    // Funzione per fare chiamate API con cache
+    const fetchWithCache = async (url) => {
+        if (apiCallsCache.has(url)) {
+            return apiCallsCache.get(url);
+        }
+        
+        const promise = fetch(url)
+            .then(r => r.json())
+            .catch(() => ({ success: false }));
+        
+        apiCallsCache.set(url, promise);
+        return promise;
+    };
 
     tables.forEach(function(table) {
         const anno = table.getAttribute('data-anno');
         const nickname = table.getAttribute('data-nickname');
-        if (!anno || !nickname) return;
+        if (!anno || !nickname) {
+            console.warn('Tabella senza data-anno o data-nickname:', table);
+            return;
+        }
+
+        console.log(`Elaboro tabella per ${nickname} - ${anno}`);
 
         const mesi = Array.from({ length: 12 }, (_, i) => i + 1);
 
-        // Chiamate annuali (5-6 richieste al posto di 12xN)
+        // Chiamate annuali con cache
         Promise.all([
-            fetch(`/corrispettivi/api/annuale/energia-kwh/${encodeURIComponent(nickname)}/${anno}/`).then(r => r.json()).catch(() => ({ success:false })),
-            fetch(`/corrispettivi/api/annuale/dati-tfo/${encodeURIComponent(nickname)}/${anno}/`).then(r => r.json()).catch(() => ({ success:false })),
-            fetch(`/corrispettivi/api/annuale/dati-CNI/${encodeURIComponent(nickname)}/${anno}/`).then(r => r.json()).catch(() => ({ success:false })),
-            fetch(`/corrispettivi/api/annuale/dati-fatturazione-tfo/${encodeURIComponent(nickname)}/${anno}/`).then(r => r.json()).catch(() => ({ success:false })),
-            fetch(`/corrispettivi/api/annuale/dati-energia-non-incentivata/${encodeURIComponent(nickname)}/${anno}/`).then(r => r.json()).catch(() => ({ success:false })),
-            fetch(`/corrispettivi/api/annuale/dati-riepilogo-pagamenti/${encodeURIComponent(nickname)}/${anno}/`).then(r => r.json()).catch(() => ({ success:false })),
-            fetch(`/corrispettivi/api/annuale/percentuale-controllo/${encodeURIComponent(nickname)}/${anno}/`).then(r => r.json()).catch(() => ({ success:false })),
-            fetch(`/corrispettivi/api/annuale/commenti/${encodeURIComponent(nickname)}/${anno}/`).then(r => r.json()).catch(() => ({ success:false }))
+            fetchWithCache(`/corrispettivi/api/annuale/energia-kwh/${encodeURIComponent(nickname)}/${anno}/`),
+            fetchWithCache(`/corrispettivi/api/annuale/dati-tfo/${encodeURIComponent(nickname)}/${anno}/`),
+            fetchWithCache(`/corrispettivi/api/annuale/dati-CNI/${encodeURIComponent(nickname)}/${anno}/`),
+            fetchWithCache(`/corrispettivi/api/annuale/dati-fatturazione-tfo/${encodeURIComponent(nickname)}/${anno}/`),
+            fetchWithCache(`/corrispettivi/api/annuale/dati-energia-non-incentivata/${encodeURIComponent(nickname)}/${anno}/`),
+            fetchWithCache(`/corrispettivi/api/annuale/dati-riepilogo-pagamenti/${encodeURIComponent(nickname)}/${anno}/`),
+            fetchWithCache(`/corrispettivi/api/annuale/percentuale-controllo/${encodeURIComponent(nickname)}/${anno}/`),
+            fetchWithCache(`/corrispettivi/api/annuale/commenti/${encodeURIComponent(nickname)}/${anno}/`)
         ]).then(([energiaAnn, tfoAnn, cniAnn, fattTfoAnn, niAnn, incAnn, percCtrlAnn, commAnn]) => {
             const energiaByM = (energiaAnn && energiaAnn.per_month) || {};
             const tfoByM = (tfoAnn && tfoAnn.per_month) || {};
@@ -46,12 +77,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 const cellTFO = table.querySelector(`.tfo-value[data-mese="${mese}"]`);
                 if (cellTFO) {
                     const v = tfoByM[mese] ?? tfoByM[String(mese)] ?? null;
-                    // console.log(`[DEBUG TFO] Mese: ${mese}, Valore originale: ${v}, Tipo: ${typeof v}`);
                     if (v === null || typeof v === 'undefined') {
                         cellTFO.textContent = 'NuN';
                     } else {
                         const sum = parseFloat(v) || 0;
-                        // console.log(`[DEBUG TFO] Mese: ${mese}, Valore convertito: ${sum}, Testo finale: ${sum === 0 ? '0 €' : sum.toFixed(2).replace('.', ',') + ' €'}`);
                         cellTFO.textContent = sum === 0 ? '0 €' : sum.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
                     }
                 }
@@ -149,26 +178,81 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            // Aggiorna totali una volta sola dopo il riempimento
+            // Aggiorna totali una volta sola dopo il riempimento di questa tabella annuale
             aggiornaTotaleEnergiaAnnuale(table);
             aggiornaTotaleTFOAnnuale(table);
             aggiornaTotaleEnergiaNonIncentivata(table);
             aggiornaTotaleFatturazioneTFOAnnuale(table);
             aggiornaTotaleIncassiAnnuale(table);
+
         }).catch(err => {
             console.error('Errore caricamento annuale:', err);
         });
     });
-});
 
+    // Invia l'evento totale UNA SOLA VOLTA dopo un breve ritardo per garantire che tutte le tabelle siano popolate.
+    setTimeout(() => {
+        calcolaEmettiTotaliComplessivi(tables);
+    }, 500);
+
+}); 
+
+function calcolaEmettiTotaliComplessivi(tables) {
+    const totaliAnnuali = [];
+
+    tables.forEach(table => {
+        // Queste chiamate sono necessarie per popolare i totali (es. .totale-energia) che la funzione estraiTotale andrà a leggere.
+        aggiornaTotaleEnergiaAnnuale(table);
+        aggiornaTotaleTFOAnnuale(table);
+        aggiornaTotaleFatturazioneTFOAnnuale(table);
+        aggiornaTotaleIncassiAnnuale(table);
+
+        const anno = parseInt(table.getAttribute('data-anno'));
+        const energia = estraiTotale(table, '.totale-energia');
+        const tfo = estraiTotale(table, '.totale-corrispettivo-incentivo');
+        const cni = estraiTotale(table, '.totale-CNI') || 0; // Assumi 0 se non calcolabile/selettore non trovato
+        const fatturazione = estraiTotale(table, '.totale-fatturazione-tfo');
+        const pagamenti = estraiTotale(table, '.totale-incassi');
+
+        totaliAnnuali.push({
+            anno, energia, tfo, cni, fatturazione, pagamenti
+        });
+    });
+
+    // Filtra per dati validi e ordina per anno
+    const totaliFiltrati = totaliAnnuali.filter(t => t.anno && (t.energia > 0 || t.tfo > 0 || t.fatturazione > 0));
+    totaliFiltrati.sort((a, b) => a.anno - b.anno);
+
+    // Emetti l'evento UNA SOLA VOLTA con tutti i dati
+    window.dispatchEvent(new CustomEvent('totaliAnnualiCaricati', {
+        detail: { totaliAnnuali: totaliFiltrati }
+    }));
+    console.log('Evento totaliAnnualiCaricati emesso con:', totaliFiltrati);
+}
+
+
+/**
+ * Estrae il valore numerico da una cella del totale, pulendola da formattazione.
+ * @param {Element} table - La tabella di riferimento.
+ * @param {string} selector - Il selettore CSS della cella (es. '.totale-energia').
+ * @returns {number} Il valore numerico estratto, o 0.
+ */
+function estraiTotale(table, selector) {
+    const cella = table.querySelector(selector);
+    if (!cella) return 0;
+    const testo = cella.textContent.trim();
+    if (!testo || testo === 'NuN' || testo === 'Nun') return 0;
+    // Pulisce da punti (separatore migliaia), sostituisce virgola (separatore decimale) con punto, rimuove ' €'
+    const valore = parseFloat(testo.replace(/\./g, '').replace(',', '.').replace(' €', ''));
+    return isNaN(valore) ? 0 : valore;
+}
+
+// Funzioni aggiornaTotale (fuori, come prima)
 function aggiornaTotaleEnergiaAnnuale(table) {
     let totale = 0;
     const celle = table.querySelectorAll('.energia-value');
     celle.forEach(td => {
-        // Ignora le celle che contengono "NuN" o "Nun"
         if (td.textContent === 'NuN' || td.textContent === 'Nun') return;
-        
-        // Rimuoviamo i separatori delle migliaia e convertiamo la virgola decimale
         const v = parseFloat(td.textContent.replace(/\./g, '').replace(',', '.'));
         if (!isNaN(v)) totale += v;
     });
@@ -179,12 +263,8 @@ function aggiornaTotaleEnergiaAnnuale(table) {
 function aggiornaTotaleTFOAnnuale(table) {
     let totale = 0;
     const celle = table.querySelectorAll('.tfo-value');
-   
     celle.forEach(td => {
-        // Ignora le celle che contengono "NuN" o "Nun"
         if (td.textContent === 'NuN' || td.textContent === 'Nun') return;
-        
-        // Rimuoviamo i separatori delle migliaia e il simbolo dell'euro, poi convertiamo la virgola decimale
         const v = parseFloat(td.textContent.replace(/\./g, '').replace(',', '.').replace(' €', ''));
         if (!isNaN(v)) totale += v;
     });
@@ -192,15 +272,11 @@ function aggiornaTotaleTFOAnnuale(table) {
     if (totaleCell) totaleCell.textContent = totale ? totale.toFixed(2).replace('.', ',') + ' €' : '';
 }
 
-
 function aggiornaTotaleEnergiaNonIncentivata(table) {
     let totale = 0;
     const celle = table.querySelectorAll('.fatturazione-altro-value');
     celle.forEach(td => {
-        // Ignora le celle che contengono "NuN" o "Nun"
         if (td.textContent === 'NuN' || td.textContent === 'Nun') return;
-        
-        // Rimuoviamo i separatori delle migliaia e convertiamo la virgola decimale
         const v = parseFloat(td.textContent.replace(/\./g, '').replace(',', '.'));
         if (!isNaN(v)) totale += v;
     });
@@ -212,10 +288,7 @@ function aggiornaTotaleFatturazioneTFOAnnuale(table) {
     let totale = 0;
     const celle = table.querySelectorAll('.fatturazione-tfo-value');
     celle.forEach(td => {
-        // Ignora le celle che contengono "NuN" o "Nun"
         if (td.textContent === 'NuN' || td.textContent === 'Nun') return;
-        
-        // Rimuoviamo i separatori delle migliaia e il simbolo dell'euro, poi convertiamo la virgola decimale
         const v = parseFloat(td.textContent.replace(/\./g, '').replace(',', '.').replace(' €', ''));
         if (!isNaN(v)) totale += v;
     });
@@ -227,10 +300,7 @@ function aggiornaTotaleIncassiAnnuale(table) {
     let totale = 0;
     const celle = table.querySelectorAll('.incassi-value');
     celle.forEach(td => {
-        // Ignora le celle che contengono "NuN" o "Nun"
         if (td.textContent === 'NuN' || td.textContent === 'Nun') return;
-        
-        // Rimuoviamo i separatori delle migliaia e il simbolo dell'euro, poi convertiamo la virgola decimale
         const v = parseFloat(td.textContent.replace(/\./g, '').replace(',', '.').replace(' €', ''));
         if (!isNaN(v)) totale += v;
     });
