@@ -13,6 +13,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Mappa per tracciare le chiamate API già fatte
     const apiCallsCache = new Map();
+    
+    // Filtra solo le tabelle valide (con data-anno e data-nickname)
+    const tabelleValide = Array.from(tables).filter(table => {
+        const anno = table.getAttribute('data-anno');
+        const nickname = table.getAttribute('data-nickname');
+        if (!anno || !nickname) {
+            console.warn('Tabella senza data-anno o data-nickname:', table);
+            return false;
+        }
+        return true;
+    });
+    
+    console.log(`Tabelle valide da processare: ${tabelleValide.length}`);
+    
+    // Contatore per tracciare quante tabelle hanno completato il caricamento
+    let tabelleCompletate = 0;
+    const totaleTabelleAttese = tabelleValide.length;
+    
+    // Se non ci sono tabelle valide, esci
+    if (totaleTabelleAttese === 0) {
+        console.warn('[TABELLA CORRISPETTIVI] Nessuna tabella valida trovata');
+        return;
+    }
 
     // Funzione per fare chiamate API con cache
     const fetchWithCache = async (url) => {
@@ -28,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
         return promise;
     };
 
-    tables.forEach(function(table) {
+    tabelleValide.forEach(function(table) {
         const anno = table.getAttribute('data-anno');
         const nickname = table.getAttribute('data-nickname');
         if (!anno || !nickname) {
@@ -184,19 +207,32 @@ document.addEventListener('DOMContentLoaded', function() {
             aggiornaTotaleEnergiaNonIncentivata(table);
             aggiornaTotaleFatturazioneTFOAnnuale(table);
             aggiornaTotaleIncassiAnnuale(table);
+            
+            // Incrementa il contatore e controlla se tutte le tabelle sono state processate
+            tabelleCompletate++;
+            console.log(`[TABELLA CORRISPETTIVI] Tabella ${tabelleCompletate}/${totaleTabelleAttese} completata`);
+            
+            if (tabelleCompletate === totaleTabelleAttese) {
+                // Tutte le tabelle sono state caricate, emetti l'evento
+                console.log('[TABELLA CORRISPETTIVI] Tutte le tabelle caricate, emetto evento');
+                calcolaEmettiTotaliComplessivi(tables);
+            }
 
         }).catch(err => {
             console.error('Errore caricamento annuale:', err);
+            
+            // Anche in caso di errore, incrementa il contatore
+            tabelleCompletate++;
+            if (tabelleCompletate === totaleTabelleAttese) {
+                console.log('[TABELLA CORRISPETTIVI] Tutte le tabelle processate (con errori), emetto evento');
+                calcolaEmettiTotaliComplessivi(tables);
+            }
         });
     });
 
-    // Invia l'evento totale UNA SOLA VOLTA dopo un breve ritardo per garantire che tutte le tabelle siano popolate.
-    setTimeout(() => {
-        calcolaEmettiTotaliComplessivi(tables);
-    }, 500);
-
 }); 
 
+// Calcola totali di tutte le tabelle ed emette evento 'totaliAnnualiCaricati'
 function calcolaEmettiTotaliComplessivi(tables) {
     const totaliAnnuali = [];
 
@@ -230,13 +266,7 @@ function calcolaEmettiTotaliComplessivi(tables) {
     console.log('Evento totaliAnnualiCaricati emesso con:', totaliFiltrati);
 }
 
-
-/**
- * Estrae il valore numerico da una cella del totale, pulendola da formattazione.
- * @param {Element} table - La tabella di riferimento.
- * @param {string} selector - Il selettore CSS della cella (es. '.totale-energia').
- * @returns {number} Il valore numerico estratto, o 0.
- */
+// Estrae il valore numerico da una cella del totale, pulendola da formattazione.
 function estraiTotale(table, selector) {
     const cella = table.querySelector(selector);
     if (!cella) return 0;
@@ -247,7 +277,7 @@ function estraiTotale(table, selector) {
     return isNaN(valore) ? 0 : valore;
 }
 
-// Funzioni aggiornaTotale (fuori, come prima)
+// Aggiorna totali annuali energia
 function aggiornaTotaleEnergiaAnnuale(table) {
     let totale = 0;
     const celle = table.querySelectorAll('.energia-value');
@@ -260,6 +290,7 @@ function aggiornaTotaleEnergiaAnnuale(table) {
     if (totaleCell) totaleCell.textContent = totale ? totale.toString().replace('.', ',') : '';
 }
 
+// Aggiorna totali annuali TFO
 function aggiornaTotaleTFOAnnuale(table) {
     let totale = 0;
     const celle = table.querySelectorAll('.tfo-value');
@@ -272,6 +303,7 @@ function aggiornaTotaleTFOAnnuale(table) {
     if (totaleCell) totaleCell.textContent = totale ? totale.toFixed(2).replace('.', ',') + ' €' : '';
 }
 
+// Aggiorna totali annuali energia non incentivata
 function aggiornaTotaleEnergiaNonIncentivata(table) {
     let totale = 0;
     const celle = table.querySelectorAll('.fatturazione-altro-value');
@@ -284,6 +316,7 @@ function aggiornaTotaleEnergiaNonIncentivata(table) {
     if (totaleCell) totaleCell.textContent = totale ? totale.toString().replace('.', ',') : '';
 }
 
+// Aggiorna totali annuali fatturazione TFO
 function aggiornaTotaleFatturazioneTFOAnnuale(table) {
     let totale = 0;
     const celle = table.querySelectorAll('.fatturazione-tfo-value');

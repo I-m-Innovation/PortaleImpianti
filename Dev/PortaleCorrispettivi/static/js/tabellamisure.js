@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// Funzione per caricare i dati della tabella 2
+// Carica dati misure per anno/nickname da API e popola tabella
 function caricaDatiTabella2(anno, nickname) {
     const loadingAlertId = 'loading-alert-' + anno;
     const successAlertId = 'success-table2-alert-' + anno;

@@ -22,9 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    /**
-     * Carica i dati annuali per un singolo impianto
-     */
+    // Carica dati annuali per singolo impianto da API
     async function caricaDatiImpiantoAnno(nickname, anno) {
         const base = `/corrispettivi/api/annuale`;
         
@@ -53,9 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    /**
-     * Carica e somma i dati di tutti gli impianti per l'anno specificato
-     */
+    // Carica e somma dati di tutti gli impianti per anno
     async function caricaDatiAnno(impianti, anno) {
         // Carica i dati per tutti gli impianti in parallelo ma con limiti
         const chunkSize = 3; // Massimo 3 impianti alla volta
@@ -224,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const formattaNumero = (valore, isEuro = false) => {
                 if (isMeseFuturo) return '-';
                 if (isEuro) {
-                    return '€ ' + Math.round(valore || 0).toLocaleString('it-IT');
+                    return Math.round(valore || 0).toLocaleString('it-IT') + ' €';
                 }
                 return Math.round(valore || 0).toLocaleString('it-IT');
             };
@@ -267,16 +263,17 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             footerCallback: function() {
                 const api = this.api();
-                $(api.column(2).footer()).html(Math.round(totaleEnergia).toLocaleString('it-IT'));
-                $(api.column(3).footer()).html('€ ' + Math.round(totaleCorrispettivi).toLocaleString('it-IT'));
-                $(api.column(4).footer()).html('€ ' + Math.round(totaleFatturazione).toLocaleString('it-IT'));
-                $(api.column(5).footer()).html('€ ' + Math.round(totaleIncassi).toLocaleString('it-IT'));
+                $(api.column(2).footer()).html(Math.round(totaleEnergia).toLocaleString('it-IT') + ' kWh');
+                $(api.column(3).footer()).html(Math.round(totaleCorrispettivi).toLocaleString('it-IT') + ' €');
+                $(api.column(4).footer()).html(Math.round(totaleFatturazione).toLocaleString('it-IT') + ' €');
+                $(api.column(5).footer()).html(Math.round(totaleIncassi).toLocaleString('it-IT') + ' €');
             }
         });
 
         return dataTable;
     }
 
+    // Funzione principale: carica dati anno selezionato e aggiorna grafico/tabella
     async function aggiornaAnnoSelezionato() {
         const selettoreAnno = document.getElementById('selettore-anno');
         const anno = selettoreAnno ? (selettoreAnno.value || new Date().getFullYear()) : new Date().getFullYear();

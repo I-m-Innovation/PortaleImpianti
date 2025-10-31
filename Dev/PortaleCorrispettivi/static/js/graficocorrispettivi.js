@@ -14,12 +14,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Attendi che il div del grafico sia visibile
-        document.querySelector(`a[href="#grafico_${anno}"]`).addEventListener('click', function() {
-            console.log("Click rilevato per grafico anno:", anno);
-            setTimeout(function() {
-                inizializzaGrafico(anno);
-            }, 300); // Aumentato il timeout per dare più tempo al DOM
-        });
+        const linkGrafico = document.querySelector(`a[href="#grafico_${anno}"]`);
+        if (linkGrafico) {
+            linkGrafico.addEventListener('click', function() {
+                console.log("Click rilevato per grafico anno:", anno);
+                setTimeout(function() {
+                    inizializzaGrafico(anno);
+                }, 300); // Aumentato il timeout per dare più tempo al DOM
+            });
+        } else {
+            console.warn(`Link per grafico anno ${anno} non trovato`);
+        }
         
         // Aggiungi anche un listener per gli eventi bootstrap
         graficoDiv.addEventListener('shown.bs.collapse', function() {
@@ -47,10 +52,16 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log(`Recupero dati per grafico anno ${anno}...`);
 
 		// Carica i dati annuali via JSON dagli endpoint e costruisce le serie
-		const table = document.getElementById(`table1_${anno}`);
-		const nickname = table ? table.getAttribute('data-nickname') : null;
+		// Recupera il nickname dal container del grafico (ha data-nickname) con fallback alla tabella annuale
+		let nickname = container ? container.getAttribute('data-nickname') : null;
 		if (!nickname) {
-			console.warn(`Nickname non trovato per l'anno ${anno}`);
+			const tableFallback = document.querySelector(`.js-tabella-corrispettivi[data-anno="${anno}"]`);
+			if (tableFallback) {
+				nickname = tableFallback.getAttribute('data-nickname');
+			}
+		}
+		if (!nickname) {
+			console.warn(`Nickname non trovato per l'anno ${anno} (né nel chart né nella tabella)`);
 			return;
 		}
 
