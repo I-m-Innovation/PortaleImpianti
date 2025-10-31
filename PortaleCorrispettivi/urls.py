@@ -24,7 +24,7 @@ urlpatterns = [
 	# Commenti tabella corrispettivi
 	path('api/salva-commento/', API_views.salva_commento_tabella, name='api-salva-commento-tabella'),
 	path('api/commento/<str:nickname>/<int:anno>/<int:mese>/', API_views.get_commento_tabella, name='api-get-commento-tabella'),
-
+	path('api/dati-PUN/<str:nickname>/<int:anno>/<int:mese>/', API_views.datiPUN, name='api-dati-PUN'),
 	# Endpoint annuali ottimizzati (riduzione chiamate)
 	path('api/annuale/energia-kwh/<str:nickname>/<int:anno>/', API_views.energiakwh_annuale, name='api-energia-kwh-annuale'),
 	path('api/annuale/dati-tfo/<str:nickname>/<int:anno>/', API_views.datiTFO_annuale, name='api-dati-tfo-annuale'),

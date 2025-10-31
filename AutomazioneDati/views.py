@@ -29,16 +29,22 @@ def home(request):
 
 
 def diarioenergie(request, nickname):
+    print(f"\n========================= INIZIO diarioenergie =========================")
+    print(f"DEBUG: Chiamata vista diarioenergie con nickname: {nickname}")
     # Ottieni l'impianto
     impianto = get_object_or_404(Impianto, nickname=nickname)
-    
+    print(f"DEBUG: Impianto trovato: ID={impianto.id}, Nickname={impianto.nickname}, Nome={getattr(impianto, 'nome', 'N/A')}")
+
     # Ottieni l'anno dalla query string, default all'anno corrente
     anno_corrente = request.GET.get('year', str(timezone.now().year))
+    print(f"DEBUG: year dalla querystring: {anno_corrente}")
     anno_corrente = int(anno_corrente)
+    print(f"DEBUG: Anno corrente (usato per la vista): {anno_corrente}")
 
     # Calcola le date di inizio e fine anno
     data_inizio_anno = datetime.date(anno_corrente, 1, 1)
     data_fine_anno = datetime.date(anno_corrente, 12, 31)
+    print(f"DEBUG: Data inizio anno: {data_inizio_anno}, Data fine anno: {data_fine_anno}")
 
     # Filtra tutti i contatori (attivi e dismessi nell'anno corrente) per l'impianto selezionato
     # e ordina per data di installazione per facilitare l'identificazione attivo/sostituito
@@ -50,20 +56,24 @@ def diarioenergie(request, nickname):
     ).order_by('data_installazione')
 
     print(f"DEBUG: Contatori totali trovati per {nickname} nell'anno {anno_corrente}:")
-    for c in contatori_all_types:
-        print(f"  - ID: {c.id}, Nome: {c.nome}, Tipologia: {c.tipologia}, Data installazione: {c.data_installazione}, Data dismissione: {c.data_dismissione}")
+    for i, c in enumerate(contatori_all_types, 1):
+        print(f"  {i}. ID: {c.id}, Nome: {c.nome}, Tipologia: {c.tipologia}, Data installazione: {c.data_installazione}, Data dismissione: {c.data_dismissione}, K: {getattr(c,'k','')}, TipoFascio: {getattr(c,'tipologiafascio','')}")
 
     # Identifica il contatore "attivo" (quello non dismesso) per ciascuna tipologia
     contatore_produzione_attivo = contatori_all_types.filter(tipologia="Produzione", data_dismissione__isnull=True).first()
     contatore_scambio_attivo = contatori_all_types.filter(tipologia="Scambio", data_dismissione__isnull=True).first()
     contatore_ausiliare_attivo = contatori_all_types.filter(tipologia="Ausiliare", data_dismissione__isnull=True).first()
 
+    print(f"DEBUG: contatore_produzione_attivo={contatore_produzione_attivo}")
+    print(f"DEBUG: contatore_scambio_attivo={contatore_scambio_attivo}")
+    print(f"DEBUG: contatore_ausiliare_attivo={contatore_ausiliare_attivo}")
+
     # Identifica il contatore "sostituito" (quello dismesso che era attivo durante l'anno) per ciascuna tipologia
     # Include tutti i contatori dismessi che erano attivi durante l'anno visualizzato, non solo quelli dismessi nell'anno corrente
     contatore_produzione_sostituito = contatori_all_types.filter(
         tipologia="Produzione", 
         data_dismissione__isnull=False
-    ).order_by('-data_dismissione').first()  # Ordina per data dismissione decrescente per prendere il più recente
+    ).order_by('-data_dismissione').first()
 
     contatore_scambio_sostituito = contatori_all_types.filter(
         tipologia="Scambio", 
@@ -100,23 +110,22 @@ def diarioenergie(request, nickname):
     print(f"DEBUG: has_sostituzione_ausiliare: {has_sostituzione_ausiliare}")
 
     # Filtra i contatori da mostrare nella lista a lato (Elenco Contatori)
-    # Assicurati che 'contatori' contenga tutti i contatori attivi o dismessi nell'anno corrente
-    # che non siano stati già gestiti come sostituiti per la tabella principale.
     contatori = contatori_all_types # Utilizza la lista completa per l'elenco a sinistra e dropdown
 
     # Ottieni l'ID del contatore specifico dalla query string
     contatore_id = request.GET.get('contatore_id')
     
     # DEBUG: Stampa tutti i contatori disponibili
-    print(f"DEBUG: Contatori disponibili per impianto {nickname}:")
+    print(f"DEBUG: Contatori disponibili per impianto {nickname}: count={contatori.count()}")
     for cont in contatori:
-        print(f"  - ID: {cont.id}, Nome: {cont.nome}, Tipologia: {cont.tipologia}")
-    
+        print(f"  - ID: {cont.id}, Nome: {cont.nome}, Tipologia: {cont.tipologia}, Data_inst: {cont.data_installazione}, Data_dism: {cont.data_dismissione}")
+
     # DEBUG: Stampa il contatore_id dalla query string
     print(f"DEBUG: contatore_id dalla query string: {contatore_id}")
     
     # Se è specificato un contatore specifico, selezionalo
     if contatore_id:
+        print(f"DEBUG: Tentativo di selezione contatore con ID: {contatore_id}")
         contatore_selezionato = get_object_or_404(Contatore, id=contatore_id, impianto_nickname=nickname)
         print(f"DEBUG: Contatore selezionato tramite ID: {contatore_selezionato.nome} ({contatore_selezionato.tipologia})")
     else:
@@ -126,6 +135,7 @@ def diarioenergie(request, nickname):
     
     # Determina quali tipi di contatori sono presenti nell'impianto
     tipologie_presenti = list(contatori.values_list('tipologia', flat=True).distinct())
+    print(f"DEBUG: Tipologie di contatori presenti nell'impianto: {tipologie_presenti}")
     
     # Conta quante colonne dovremo mostrare per regolare il layout
     numero_gruppi_colonne = 0
@@ -141,13 +151,8 @@ def diarioenergie(request, nickname):
         numero_gruppi_colonne += 3  # Ausiliare (3)
     if contatore_ausiliare_sostituito:
         numero_gruppi_colonne += 3  # Ausiliare (3) del contatore sostituito
+    print(f"DEBUG: Numero gruppi colonne per tabella: {numero_gruppi_colonne}")
 
-    # Recupera il contatore selezionato per i calcoli (se presente)
-    # Questa variabile contatore_selezionato è usata per il token CSRF e altri attributi.
-    # Assicurati che sia il contatore corretto se ve n'è uno selezionato.
-    # Se contatore_id è None, contatore_selezionato è None, il che è gestito.
-
-    # Prepara la lista dei dati mensili per il template
     dati_mensili_template = []
 
     # Helper function to calculate readings for a given counter
@@ -157,7 +162,10 @@ def diarioenergie(request, nickname):
             "campo_secondario": "", "ed_secondario": "", "gse_secondario": ""
         }
         if not counter_obj:
+            #print(f"DEBUG: calculate_counter_data called with None counter (month={month})")
             return data
+
+        print(f"DEBUG: === Calcolo dati per contatore {counter_obj.nome} (ID:{counter_obj.id}, Tipo:{counter_obj.tipologia}), anno={current_year}, mese={month}")
 
         install_date = counter_obj.data_installazione
         dismission_date = counter_obj.data_dismissione
@@ -166,27 +174,33 @@ def diarioenergie(request, nickname):
         month_start_date = datetime.date(current_year, month, 1)
         month_end_date = datetime.date(current_year, month, calendar.monthrange(current_year, month)[1])
 
-        # A counter is active for the month if its installation date is before or within the month,
-        # AND its dismission date (if any) is after or within the month.
         is_active_for_month = (install_date <= month_end_date) and (dismission_date is None or dismission_date >= month_start_date)
+        print(f"DEBUG:   install:{install_date}, dismission:{dismission_date}, month_start:{month_start_date}, month_end:{month_end_date}, is_active_for_month:{is_active_for_month}")
 
         if not is_active_for_month:
+            print(f"DEBUG:   Contatore NON ATTIVO per questo mese ({month})/anno {current_year}")
             return data # Return empty data if not active for this month
 
         letture = LetturaContatore.objects.filter(
             contatore=counter_obj,
-            anno__in=[current_year, current_year + 1] # Look for readings in current and next year for calculations
+            anno__in=[current_year, current_year + 1]
         ).order_by('anno', 'mese')
         letture_dict = {(l.anno, l.mese): l for l in letture}
-        
+        print(f"DEBUG:   Trovate {len(letture)} letture per questo contatore nell'anno {current_year} e {current_year+1}")
+
         lettura_corrente = letture_dict.get((current_year, month))
         if month < 12:
             lettura_successiva = letture_dict.get((current_year, month + 1))
-        else: # For December, look for January of next year
+        else:
             lettura_successiva = letture_dict.get((current_year + 1, 1))
 
+        print(f"DEBUG:   Lettura Corrente: {lettura_corrente}")
+        print(f"DEBUG:   Lettura Successiva: {lettura_successiva}")
+
         k_factor = counter_obj.k if counter_obj.k else 1
+        print(f"DEBUG:   Fattore k: {k_factor}")
         tipologia_fascio = counter_obj.tipologiafascio.lower() if counter_obj.tipologiafascio else None
+        print(f"DEBUG:   tipologia_fascio: {tipologia_fascio}")
 
         valore_campo_principale = ""
         valore_campo_secondario = ""
@@ -201,65 +215,89 @@ def diarioenergie(request, nickname):
                     elif tipologia_fascio == "monofascio":
                         val_corrente_prod = float(lettura_corrente.totale_180n or 0)
                         val_successivo_prod = float(lettura_successiva.totale_180n or 0)
-                    else: # Fallback
+                    else:
                         val_corrente_prod = val_successivo_prod = 0
-                    # Se entrambe le letture sono 0, consideriamo il valore come non ancora calcolato -> cella vuota
+                    print(f"DEBUG:     [PROD] Prodotta: val_corrente_prod={val_corrente_prod}, val_successivo_prod={val_successivo_prod}, k={k_factor}")
+
                     if val_corrente_prod == 0 and val_successivo_prod == 0:
                         valore_campo_principale = ""
                     else:
                         calcolato = round((val_successivo_prod - val_corrente_prod) * k_factor, 3)
+                        print(f"DEBUG:     [PROD] calcolato (prodotta)={calcolato}")
                         valore_campo_principale = calcolato if calcolato >= 0 else ""
 
                     # Prelevata (Campo kWh)
                     val_corrente_prel = float(lettura_corrente.totale_pos or 0)
                     val_successivo_prel = float(lettura_successiva.totale_pos or 0)
-                    # Anche qui: se entrambe le letture sono 0, cella vuota
+                    print(f"DEBUG:     [PROD] Prelevata: val_corrente_prel={val_corrente_prel}, val_successivo_prel={val_successivo_prel}, k={k_factor}")
+
                     if val_corrente_prel == 0 and val_successivo_prel == 0:
                         valore_campo_secondario = ""
                     else:
                         calcolato_prel = round((val_successivo_prel - val_corrente_prel) * k_factor, 3)
+                        print(f"DEBUG:     [PROD] calcolato (prelevata)={calcolato_prel}")
                         valore_campo_secondario = calcolato_prel if calcolato_prel >= 0 else ""
 
                 elif counter_obj.tipologia == "Scambio":
+                    # Inversione logica per TRIFASCIO: 
+                    # - Autoconsumata usa 2.8.0 se disponibile, altrimenti totale_pos
+                    # - Immessa usa totale_neg
                     if tipologia_fascio == "trifascio":
-                        val_corrente_autocons = float(lettura_corrente.totale_neg or 0)
-                        val_successivo_autocons = float(lettura_successiva.totale_neg or 0)
+                        if (getattr(lettura_corrente, 'totale_280n', None) is not None 
+                            and getattr(lettura_successiva, 'totale_280n', None) is not None):
+                            val_corrente_autocons = float(lettura_corrente.totale_280n or 0)
+                            val_successivo_autocons = float(lettura_successiva.totale_280n or 0)
+                            print(f"DEBUG:     [SCAMBIO] Autoconsumata (2.8.0 per TRIFASCIO): val_corrente_autocons={val_corrente_autocons}, val_successivo_autocons={val_successivo_autocons}, k={k_factor}")
+                        else:
+                            val_corrente_autocons = float(lettura_corrente.totale_pos or 0)
+                            val_successivo_autocons = float(lettura_successiva.totale_pos or 0)
+                            print(f"DEBUG:     [SCAMBIO] Autoconsumata (fallback totale_pos per TRIFASCIO): val_corrente_autocons={val_corrente_autocons}, val_successivo_autocons={val_successivo_autocons}, k={k_factor}")
                     elif tipologia_fascio == "monofascio":
                         val_corrente_autocons = float(lettura_corrente.totale_180n or 0)
                         val_successivo_autocons = float(lettura_successiva.totale_180n or 0)
-                    else: # Fallback
+                        print(f"DEBUG:     [SCAMBIO] Autoconsumata (MONOFASCIO): val_corrente_autocons={val_corrente_autocons}, val_successivo_autocons={val_successivo_autocons}, k={k_factor}")
+                    else:
                         val_corrente_autocons = val_successivo_autocons = 0
-                    
+                        print(f"DEBUG:     [SCAMBIO] Autoconsumata: tipologia_fascio non riconosciuta, valori a 0")
+
                     calcolato = round((val_successivo_autocons - val_corrente_autocons) * k_factor, 3)
+                    print(f"DEBUG:     [SCAMBIO] calcolato (autocons)={calcolato}")
                     valore_campo_principale = calcolato if calcolato >= 0 else ""
 
-                    # Immessa (Campo kWh) - usa 2.8.0 se disponibile, altrimenti fallback precedente
-                    if (getattr(lettura_corrente, 'totale_280n', None) is not None 
-                        and getattr(lettura_successiva, 'totale_280n', None) is not None):
-                        val_corrente_imm = float(lettura_corrente.totale_280n or 0)
-                        val_successivo_imm = float(lettura_successiva.totale_280n or 0)
+                    # Immessa (Campo kWh)
+                    if tipologia_fascio == "trifascio":
+                        val_corrente_imm = float(lettura_corrente.totale_neg or 0)
+                        val_successivo_imm = float(lettura_successiva.totale_neg or 0)
+                        print(f"DEBUG:     [SCAMBIO] Immessa (totale_neg per TRIFASCIO): val_corrente_imm={val_corrente_imm}, val_successivo_imm={val_successivo_imm}, k={k_factor}")
                     else:
-                        if tipologia_fascio == "trifascio":
-                            val_corrente_imm = float(lettura_corrente.totale_pos or 0)
-                            val_successivo_imm = float(lettura_successiva.totale_pos or 0)
-                        elif tipologia_fascio == "monofascio":
-                            val_corrente_imm = float(lettura_corrente.totale_180n or 0)
-                            val_successivo_imm = float(lettura_successiva.totale_180n or 0)
-                        else: # Fallback
-                            val_corrente_imm = val_successivo_imm = 0
+                        # Mantieni la logica esistente per altre tipologie
+                        if (getattr(lettura_corrente, 'totale_280n', None) is not None 
+                            and getattr(lettura_successiva, 'totale_280n', None) is not None):
+                            val_corrente_imm = float(lettura_corrente.totale_280n or 0)
+                            val_successivo_imm = float(lettura_successiva.totale_280n or 0)
+                            print(f"DEBUG:     [SCAMBIO] Immessa (2.8.0): val_corrente_imm={val_corrente_imm}, val_successivo_imm={val_successivo_imm}, k={k_factor}")
+                        else:
+                            if tipologia_fascio == "monofascio":
+                                val_corrente_imm = float(lettura_corrente.totale_180n or 0)
+                                val_successivo_imm = float(lettura_successiva.totale_180n or 0)
+                            else:
+                                val_corrente_imm = val_successivo_imm = 0
+                            print(f"DEBUG:     [SCAMBIO] Immessa (fallback): val_corrente_imm={val_corrente_imm}, val_successivo_imm={val_successivo_imm}, k={k_factor}")
 
                     calcolato_imm = round((val_successivo_imm - val_corrente_imm) * k_factor, 3)
+                    print(f"DEBUG:     [SCAMBIO] calcolato (immessa)={calcolato_imm}")
                     valore_campo_secondario = calcolato_imm if calcolato_imm >= 0 else ""
 
                 elif counter_obj.tipologia == "Ausiliare":
-                    # Ausiliare (Campo kWh - totale_pos)
                     val_corrente_aus = float(lettura_corrente.totale_pos or 0)
                     val_successivo_aus = float(lettura_successiva.totale_pos or 0)
+                    print(f"DEBUG:     [AUSILIARE] val_corrente_aus={val_corrente_aus}, val_successivo_aus={val_successivo_aus}, k={k_factor}")
                     calcolato = round((val_successivo_aus - val_corrente_aus) * k_factor, 3)
+                    print(f"DEBUG:     [AUSILIARE] calcolato={calcolato}")
                     valore_campo_principale = calcolato if calcolato >= 0 else ""
 
             except Exception as e:
-                print(f"Errore nel calcolo dei dati del contatore {counter_obj.nome} (ID: {counter_obj.id}): {e}")
+                print(f"ERRORE nel calcolo dei dati del contatore {counter_obj.nome} (ID: {counter_obj.id}): {e}")
                 valore_campo_principale = ""
                 valore_campo_secondario = ""
 
@@ -268,7 +306,8 @@ def diarioenergie(request, nickname):
             anno=current_year,
             mese=month
         ).first()
-        
+        print(f"DEBUG:   regsegnante trovato: {reg_segnante}")
+
         # Popola il dizionario dei dati con i valori calcolati e dai reg_segnanti
         data["campo"] = valore_campo_principale if valore_campo_principale != "" else ""
         if counter_obj.tipologia == "Produzione":
@@ -287,10 +326,12 @@ def diarioenergie(request, nickname):
             data["ed"] = reg_segnante.aus_ed if reg_segnante else ""
             data["gse"] = reg_segnante.aus_gse if reg_segnante else ""
 
+        print(f"DEBUG:   Ritorno dati: {data}")
         return data
 
     for mese in range(1, 13):
         nome_mese = calendar.month_name[mese].capitalize()
+        print(f"\n---- Calcolo dati mensili per mese {mese} [{nome_mese}] ----")
         riga = {
             "mese_numero": mese,
             "mese_nome": nome_mese,
@@ -303,7 +344,7 @@ def diarioenergie(request, nickname):
         riga["prod_gse"] = prod_data_attivo.get("gse")
         riga["prel_campo"] = prod_data_attivo.get("campo_secondario")
         riga["prel_ed"] = prod_data_attivo.get("ed_secondario")
-       
+        print(f"DEBUG:   prod_data_attivo: {prod_data_attivo}")
 
         # --- Dati Produzione (Contatore Sostituito) ---
         if has_sostituzione_produzione:
@@ -313,9 +354,8 @@ def diarioenergie(request, nickname):
             riga["prod_gse_sostituito"] = prod_data_sostituito.get("gse")
             riga["prel_campo_sostituito"] = prod_data_sostituito.get("campo_secondario")
             riga["prel_ed_sostituito"] = prod_data_sostituito.get("ed_secondario")
-           
+            print(f"DEBUG:   prod_data_sostituito: {prod_data_sostituito}")
         else:
-            # Assicurati che i campi siano vuoti se non c'è sostituzione
             riga["prod_campo_sostituito"] = riga["prod_ed_sostituito"] = riga["prod_gse_sostituito"] = ""
             riga["prel_campo_sostituito"] = riga["prel_ed_sostituito"] = riga["prel_gse_sostituito"] = ""
 
@@ -327,6 +367,7 @@ def diarioenergie(request, nickname):
         riga["imm_campo"] = scambio_data_attivo.get("campo_secondario")
         riga["imm_ed"] = scambio_data_attivo.get("ed_secondario")
         riga["imm_gse"] = scambio_data_attivo.get("gse_secondario")
+        print(f"DEBUG:   scambio_data_attivo: {scambio_data_attivo}")
 
         # --- Dati Scambio (Contatore Sostituito) ---
         if has_sostituzione_scambio:
@@ -337,8 +378,8 @@ def diarioenergie(request, nickname):
             riga["imm_campo_sostituito"] = scambio_data_sostituito.get("campo_secondario")
             riga["imm_ed_sostituito"] = scambio_data_sostituito.get("ed_secondario")
             riga["imm_gse_sostituito"] = scambio_data_sostituito.get("gse_secondario")
+            print(f"DEBUG:   scambio_data_sostituito: {scambio_data_sostituito}")
         else:
-            # Assicurati che i campi siano vuoti se non c'è sostituzione
             riga["autocons_campo_sostituito"] = riga["autocons_ed_sostituito"] = riga["autocons_gse_sostituito"] = ""
             riga["imm_campo_sostituito"] = riga["imm_ed_sostituito"] = riga["imm_gse_sostituito"] = ""
         
@@ -347,6 +388,7 @@ def diarioenergie(request, nickname):
         riga["aus_campo"] = ausiliare_data_attivo.get("campo")
         riga["aus_ed"] = ausiliare_data_attivo.get("ed")
         riga["aus_gse"] = ausiliare_data_attivo.get("gse")
+        print(f"DEBUG:   ausiliare_data_attivo: {ausiliare_data_attivo}")
 
         # --- Dati Ausiliare (Contatore Sostituito) ---
         if has_sostituzione_ausiliare:
@@ -354,20 +396,23 @@ def diarioenergie(request, nickname):
             riga["aus_campo_sostituito"] = ausiliare_data_sostituito.get("campo")
             riga["aus_ed_sostituito"] = ausiliare_data_sostituito.get("ed")
             riga["aus_gse_sostituito"] = ausiliare_data_sostituito.get("gse")
+            print(f"DEBUG:   ausiliare_data_sostituito: {ausiliare_data_sostituito}")
         else:
             riga["aus_campo_sostituito"] = riga["aus_ed_sostituito"] = riga["aus_gse_sostituito"] = ""
 
         dati_mensili_template.append(riga)
+        print(f"DEBUG: RIGA COMPLETA ({mese}): {riga}")
 
-    # DEBUG: Stampa il contenuto finale di dati_mensili_template
-    print(f"DEBUG: Contenuto finale di dati_mensili_template (primi 5 elementi): {dati_mensili_template[:5]}")
-    print(f"DEBUG: Lunghezza di dati_mensili_template: {len(dati_mensili_template)}")
+    print(f"\nDEBUG: Contenuto finale di dati_mensili_template (primi 5 elementi):")
+    for idx, item in enumerate(dati_mensili_template[:5]):
+        print(f"  {idx+1}: {item}")
+    print(f"DEBUG: Lunghezza totale dati_mensili_template: {len(dati_mensili_template)}")
 
     # Passa i dati al template
     context = {
         'impianto': impianto, 
-        'contatori': contatori, # Lista per la dropdown e l'elenco laterale
-        'contatore': contatore_selezionato, # Il contatore attualmente selezionato (per il JS)
+        'contatori': contatori,
+        'contatore': contatore_selezionato,
         'anno_corrente': anno_corrente,
         'has_produzione': has_produzione,
         'has_scambio': has_scambio,
@@ -385,8 +430,8 @@ def diarioenergie(request, nickname):
         'contatore_ausiliare_sostituito': contatore_ausiliare_sostituito,
     }
     
+    print("========================= FINE diarioenergie =========================\n")
     return render(request, 'diarioenergie.html', context)
-   
 
 @csrf_exempt
 @require_POST

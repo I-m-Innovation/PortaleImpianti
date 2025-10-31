@@ -85,7 +85,49 @@ def datiTFO(request, nickname, anno, mese):
         'impianto': nickname
     })
     
+def datiPUN(request, nickname, anno, mese):
+    """
+    Connette alla tabella 'Prezzi medi mensili' e recupera la colonna 'timestamp' (tipo timestamp)
+    e 'mean_puns' (tipo real), restituendo i dati filtrati per anno e mese.
+    """
+    # print(f"[DEBUG][datiPUN] Chiamata con nickname={nickname}, anno={anno}, mese={mese}")
+    with connection.cursor() as cursor:
+        query = """
+            SELECT strftime('%%Y-%%m-%%d %%H:%%M:%%S', timestamp) as timestamp, mean_puns
+            FROM "Prezzi medi mensili"
+            WHERE strftime('%%Y', timestamp) = %s
+              AND strftime('%%m', timestamp) = %s
+            ORDER BY timestamp
+        """
+        anno_str = str(anno)
+        mese_str = str(mese).zfill(2)
+        # print(f"[DEBUG][datiPUN] Esegui query: {query.strip()}")
+        # print(f"[DEBUG][datiPUN] Parametri query: anno_str={anno_str}, mese_str={mese_str}")
+        cursor.execute(query, [anno_str, mese_str])
+        rows = cursor.fetchall()
+        # print(f"[DEBUG][datiPUN] Numero di righe restituite dalla query: {len(rows)}")
+        # 
+        # Prepara la struttura dati: lista di dizionari con 'timestamp' e 'mean_pun'
+        dati = []
+        for row in rows:
+            # print(f"[DEBUG][datiPUN] Riga: timestamp={row[0]}, mean_puns={row[1]}")
+            dati.append({
+                'timestamp': row[0],         # timestamp nel formato db (stringa ISO o Unix timestamp)
+                'mean_pun': float(row[1]) if row[1] is not None else None  # mean_puns come float o None
+            })
+        if not dati:
+            # print("[DEBUG][datiPUN] Nessun dato trovato per i parametri specificati.")
+            dati = []  # Restituisci lista vuota in caso non ci siano dati
 
+    risposta = {
+        'success': True,
+        'data': dati,
+        'anno': anno,
+        'mese': mese,
+        'impianto': nickname
+    }
+    # print(f"[DEBUG][datiPUN] Risposta restituita: {risposta}")
+    return JsonResponse(risposta)
 # //questa energia non è moltiplicata per 0,21 che sono soldi 
     
 def datiNI(request, nickname, anno, mese):
@@ -216,8 +258,8 @@ def datiFatturazioneTFO(request, nickname, anno, mese):
     # IMPORTANTE: I nickname devono corrispondere esattamente a quelli inviati dal JavaScript
     # Se arriva "ponte_giurino" dal frontend, deve essere mappato qui con lo stesso formato
     nickname_to_table = {
-        "Partitore": "corrispettivi_energia_BA",
-        "partitore": "corrispettivi_energia_BA",  # Aggiunto in minuscolo per compatibilità
+        "petilia_bf_partitore": "corrispettivi_energia_BA",
+        "petilia_bf_partitore": "corrispettivi_energia_BA",  # Aggiunto in minuscolo per compatibilità
         
         "Ionico Foresta": "corrispettivi_energia_I1",
         "ionico_foresta": "corrispettivi_energia_I1",  # Aggiunto con underscore per compatibilità
@@ -291,8 +333,8 @@ def datiEnergiaNonIncentivata(request, nickname, anno, mese):
     
    
     nickname_to_table = {
-        "Partitore":    "corrispettivi_energia_BA",
-        "partitore": "corrispettivi_energia_BA",  # Aggiunto in minuscolo per compatibilità
+        "petilia_bf_partitore":    "corrispettivi_energia_BA",
+        "petilia_bf_partitore": "corrispettivi_energia_BA",  # Aggiunto in minuscolo per compatibilità
         
         "Ionico Foresta": "corrispettivi_energia_I1",
         "ionico_foresta": "corrispettivi_energia_I1",  # Aggiunto con underscore per compatibilità
@@ -678,8 +720,8 @@ def datiTFO_annuale(request, nickname, anno):
 def _map_nickname_to_table(nickname):
     # stessa mappa usata negli endpoint mensili
     nickname_to_table = {
-        "Partitore": "corrispettivi_energia_BA",
-        "partitore": "corrispettivi_energia_BA",
+        "petilia_bf_partitore": "corrispettivi_energia_BA",
+        "petilia_bf_partitore": "corrispettivi_energia_BA",
         "Ionico Foresta": "corrispettivi_energia_I1",
         "ionico_foresta": "corrispettivi_energia_I1",
         "San Teodoro": "corrispettivi_energia_PE",
