@@ -38,16 +38,30 @@ function creaGraficoETabellaRiepilogativa(totaliAnnuali, nickname) {
         incassi: totaliAnnuali.reduce((sum, anno) => sum + (anno.pagamenti || 0), 0)
     };
 
-    // Aggiorna la tabella HTML con la riga dei totali (formattazione italiana)
+    // Aggiorna la tabella HTML con le righe per ogni anno e il totale complessivo
     const tbody = document.querySelector('#tabella_totale_impianto tbody');
     if (tbody) {
-        tbody.innerHTML = `
+        // Crea le righe per ogni anno
+        let righeAnni = '';
+        totaliAnnuali.forEach(anno => {
+            righeAnni += `
+                <tr>
+                    <td class="text-center">${anno.anno}</td>
+                    <td class="text-center">${(anno.energia || 0).toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
+                    <td class="text-center">${((anno.tfo || 0) + (anno.cni || 0)).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €'}</td>
+                    <td class="text-center">${(anno.fatturazione || 0).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €'}</td>
+                    <td class="text-center">${(anno.pagamenti || 0).toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €'}</td>
+                </tr>`;
+        });
+        
+        // Aggiungi la riga del totale complessivo
+        tbody.innerHTML = righeAnni + `
             <tr class="table-info fw-bold">
                 <td class="text-center">Totale (tutti gli anni)</td>
                 <td class="text-center">${totaliComplessivi.energia.toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</td>
-                <td class="text-center">${totaliComplessivi.corrispettivi.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td class="text-center">${totaliComplessivi.fatturazione.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                <td class="text-center">${totaliComplessivi.incassi.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                <td class="text-center">${totaliComplessivi.corrispettivi.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €'}</td>
+                <td class="text-center">${totaliComplessivi.fatturazione.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €'}</td>
+                <td class="text-center">${totaliComplessivi.incassi.toLocaleString('it-IT', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' €'}</td>
             </tr>`;
     }
 

@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         cellCNI.textContent = 'NuN';
                     } else {
                         const sum = parseFloat(v) || 0;
-                        cellCNI.textContent = sum === 0 ? '0' : Math.round(sum).toLocaleString('it-IT');
+                        cellCNI.textContent = sum === 0 ? '0 €' : Math.round(sum).toLocaleString('it-IT') + ' €';
                     }
                 }
 
@@ -184,9 +184,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const v = niByM[mese] ?? niByM[String(mese)] ?? null;
                     if (v === null || typeof v === 'undefined') {
                         cellEnergiaNonIncentivata.textContent = 'NuN';
-                    } else {
+                    } else {   
                         const sum = parseFloat(v) || 0;
-                        cellEnergiaNonIncentivata.textContent = sum === 0 ? '0' : sum.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        cellEnergiaNonIncentivata.textContent = sum === 0 ? '0 €' : sum.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
                     }
                 }
 
