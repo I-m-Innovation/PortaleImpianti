@@ -113,13 +113,13 @@ function creaGraficoETabellaRiepilogativa(totaliAnnuali, nickname) {
             title: { 
                 text: 'Energia (kWh)',
                 style: {
-                    color: '#7cb5ec'
+                    color: 'rgb(44, 175, 254)'
                 }
             },
             labels: {
                 format: '{value:,.0f}',
                 style: {
-                    color: '#7cb5ec'
+                    color: 'rgb(44, 175, 254)'
                 }
             }
         }, {
@@ -177,7 +177,9 @@ function creaGraficoETabellaRiepilogativa(totaliAnnuali, nickname) {
             type: 'spline',
             yAxis: 0,
             data: datiEnergia,
-            color: '#7cb5ec',
+            color: '#ff7f0e',
+            zIndex: 10,
+            marker: { fillColor: '#ff7f0e', lineWidth: 2, lineColor: '#FFFFFF' },
             tooltip: { 
                 valueSuffix: ' kWh',
                 valueDecimals: 0

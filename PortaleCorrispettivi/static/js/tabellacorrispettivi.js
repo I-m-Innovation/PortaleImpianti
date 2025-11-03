@@ -384,7 +384,7 @@ function aggiornaTotaleEnergiaNonIncentivata(table) {
         if (!isNaN(v)) totale += v;
     });
     const totaleCell = table.querySelector('.totale-fatturazione-altro');
-    if (totaleCell) totaleCell.textContent = totale ? totale.toFixed(2).replace('.', ',') : '';
+    if (totaleCell) totaleCell.textContent = totale ? totale.toFixed(2).replace('.', ',') + ' €' : '';
 }
 
 // Aggiorna totali annuali fatturazione TFO

@@ -103,12 +103,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Verifica che Highcharts sia caricato
-        if (typeof Highcharts === 'undefined') {
-            chartContainer.innerHTML = '<div class="alert alert-danger">Highcharts non caricato. Ricarica la pagina.</div>';
-            return;
-        }
-
         const categorie = dati.map(d => nomiMesi[d.mese - 1]);
         const energiaData = dati.map(d => Math.round(d.energia_kwh || 0));
         const corrispettiviData = dati.map(d => Math.round(d.corrispettivi_tfo || 0));
@@ -164,7 +158,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 series: [{
                     name: 'Energia Incentivata', type: 'line', yAxis: 0, data: energiaData,
                     tooltip: { valueSuffix: ' kWh' }, color: '#ff7f0e', lineWidth: 3,
-                    marker: { fillColor: '#ff7f0e', lineWidth: 2, lineColor: '#FFFFFF' }
+                    marker: { fillColor: '#ff7f0e', lineWidth: 2, lineColor: '#FFFFFF' },
+                    zIndex: 10
                 }, {
                     name: 'Corrispettivi TFO', type: 'column', yAxis: 1, data: corrispettiviData,
                     tooltip: { valueSuffix: ' €' }, color: '#4169E1'

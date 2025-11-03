@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', function() {
 							formatter: function() { return this.y > 0 ? this.y.toLocaleString() + ' kWh' : ''; },
 							style: { fontSize: '10px' }
 						},
-						zIndex: 4
+						zIndex: 0
 					}, {
 						name: 'Corrispettivi',
 						type: 'column',
